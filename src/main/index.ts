@@ -1,4 +1,5 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { Word } from '../common/types'
 import { join } from 'path'
 import fs from 'fs'
 import sqlite3 from 'sqlite3'
@@ -41,7 +42,7 @@ function createWindow(): void {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Config file path
   const configPath = join(app.getAppPath(), 'config/config.json')
 
@@ -62,15 +63,23 @@ app.whenReady().then(() => {
       const config = await (async () => {
         try {
           const data = fs.readFileSync(configPath, 'utf8')
-          return JSON.parse(data)
+          const config = JSON.parse(data)
+          if (!config.databaseFolder) {
+            throw new Error('databaseFolder not specified in config')
+          }
+          return config
         } catch {
-          // Default to Downloads directory for database
-          return { databasePath: app.getPath('downloads') }
+          // Default to app data directory
+          const defaultPath = app.getPath('appData')
+          return { databaseFolder: defaultPath }
         }
       })()
 
       // Normalize path (expand ~ and resolve relative paths)
       const normalizePath = (path: string): string => {
+        if (!path) {
+          throw new Error('Database path is undefined')
+        }
         if (path.startsWith('~')) {
           return join(app.getPath('home'), path.slice(1))
         }
@@ -80,20 +89,20 @@ app.whenReady().then(() => {
         return path
       }
 
-      const normalizedDbPath = normalizePath(config.databasePath)
+      const normalizedDbPath = normalizePath(config.databaseFolder)
       const dbPath = join(normalizedDbPath, 'words.db')
 
       // Ensure directory exists with proper permissions
       try {
-        if (!fs.existsSync(config.databasePath)) {
-          fs.mkdirSync(config.databasePath, {
+        if (!fs.existsSync(config.databaseFolder)) {
+          fs.mkdirSync(config.databaseFolder, {
             recursive: true,
             mode: 0o755 // rwxr-xr-x
           })
         }
 
         // Test directory accessibility
-        fs.accessSync(config.databasePath, fs.constants.R_OK | fs.constants.W_OK)
+        fs.accessSync(config.databaseFolder, fs.constants.R_OK | fs.constants.W_OK)
 
         db = await open({
           filename: dbPath,
@@ -102,7 +111,7 @@ app.whenReady().then(() => {
         })
       } catch (error) {
         throw new Error(
-          `Failed to initialize database at ${dbPath}: ${error instanceof Error ? error.message : String(error)}`
+          `Failed to initialize database folder at ${dbPath}: ${error instanceof Error ? error.message : String(error)}`
         )
       }
 
@@ -122,14 +131,14 @@ app.whenReady().then(() => {
   }
 
   // Initialize database
-  initializeDB()
+  await initializeDB()
 
   ipcMain.handle('get-config', async () => {
     try {
       const data = fs.readFileSync(configPath, 'utf8')
       return JSON.parse(data)
     } catch {
-      return { databasePath: join(app.getAppPath(), 'data/words.db') }
+      return { databaseFolder: join(app.getAppPath(), 'data') }
     }
   })
 
@@ -147,10 +156,18 @@ app.whenReady().then(() => {
 
   // Database operations
   ipcMain.handle('get-words', async () => {
-    return await db.all('SELECT * FROM words ORDER BY text')
+    if (!db) {
+      throw new Error('Database not initialized')
+    }
+    const rows = await db.all('SELECT * FROM words ORDER BY text')
+    return rows.map((row) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt)
+    }))
   })
 
-  ipcMain.handle('add-word', async (_, word) => {
+  ipcMain.handle('add-word', async (_, word: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>) => {
     await db.run(
       'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
       [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
@@ -158,12 +175,17 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('search-words', async (_, query) => {
-    return await db.all(
+    const rows = await db.all(
       `SELECT * FROM words
      WHERE text LIKE ? OR description LIKE ?
      ORDER BY text`,
       [`%${query}%`, `%${query}%`]
     )
+    return rows.map((row) => ({
+      ...row,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.updatedAt)
+    }))
   })
 
   // IPC test

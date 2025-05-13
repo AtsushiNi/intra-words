@@ -4,7 +4,7 @@
  * 単語データの型定義
  */
 export interface Word {
-  id: string;
+  id: number;
   text: string;
   description: string;
   createdAt: Date;
