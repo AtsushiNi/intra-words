@@ -42,6 +42,9 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // Config file path
+  const configPath = join(app.getAppPath(), 'config/config.json')
+
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -54,26 +57,72 @@ app.whenReady().then(() => {
 
   // Database setup
   let db
-  ;(async () => {
-    db = await open({
-      filename: join(app.getAppPath(), 'data/words.db'),
-      driver: sqlite3.Database
-    })
-    
-    // Create words table if not exists
-    await db.exec(`
-      CREATE TABLE IF NOT EXISTS words (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        text TEXT NOT NULL,
-        description TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-      )
-    `)
-  })()
+  async function initializeDB(): Promise<void> {
+    try {
+      const config = await (async () => {
+        try {
+          const data = fs.readFileSync(configPath, 'utf8')
+          return JSON.parse(data)
+        } catch {
+          // Default to Downloads directory for database
+          return { databasePath: app.getPath('downloads') }
+        }
+      })()
 
-  // Config file operations
-  const configPath = join(app.getAppPath(), 'config/config.json')
+      // Normalize path (expand ~ and resolve relative paths)
+      const normalizePath = (path: string): string => {
+        if (path.startsWith('~')) {
+          return join(app.getPath('home'), path.slice(1))
+        }
+        if (!path.startsWith('/')) {
+          return join(app.getAppPath(), path)
+        }
+        return path
+      }
+
+      const normalizedDbPath = normalizePath(config.databasePath)
+      const dbPath = join(normalizedDbPath, 'words.db')
+
+      // Ensure directory exists with proper permissions
+      try {
+        if (!fs.existsSync(config.databasePath)) {
+          fs.mkdirSync(config.databasePath, {
+            recursive: true,
+            mode: 0o755 // rwxr-xr-x
+          })
+        }
+
+        // Test directory accessibility
+        fs.accessSync(config.databasePath, fs.constants.R_OK | fs.constants.W_OK)
+
+        db = await open({
+          filename: dbPath,
+          driver: sqlite3.Database,
+          mode: sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
+        })
+      } catch (error) {
+        throw new Error(
+          `Failed to initialize database at ${dbPath}: ${error instanceof Error ? error.message : String(error)}`
+        )
+      }
+
+      // Create words table if not exists
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS words (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          text TEXT NOT NULL,
+          description TEXT,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      `)
+    } catch (error) {
+      console.error('Database initialization failed:', error)
+    }
+  }
+
+  // Initialize database
+  initializeDB()
 
   ipcMain.handle('get-config', async () => {
     try {
@@ -89,9 +138,9 @@ app.whenReady().then(() => {
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
       return { success: true }
     } catch (error: unknown) {
-      return { 
-        success: false, 
-        error: error instanceof Error ? error.message : 'Unknown error' 
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
       }
     }
   })
@@ -102,12 +151,10 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('add-word', async (_, word) => {
-    await db.run('INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)', [
-      word.text,
-      word.description,
-      new Date().toISOString(),
-      new Date().toISOString()
-    ])
+    await db.run(
+      'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
+      [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
+    )
   })
 
   ipcMain.handle('search-words', async (_, query) => {
