@@ -3,6 +3,7 @@ productName: intra-words
 directories:
   buildResources: build
 files:
+  - 'data/**'
   - '!**/.vscode/*'
   - '!src/*'
   - '!electron.vite.config.{js,ts,mjs,cjs}'
