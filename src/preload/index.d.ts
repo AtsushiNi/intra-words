@@ -9,6 +9,7 @@ declare global {
       searchWords: (query: string) => Promise<Word[]>
       getConfig: () => Promise<Config>
       updateConfig: (config: Config) => Promise<void>
+      openDirectoryDialog: () => Promise<string>
     }
   }
 }

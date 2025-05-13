@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
 import { Word } from '../common/types'
 import { join } from 'path'
 import fs from 'fs'
@@ -190,6 +190,15 @@ app.whenReady().then(async () => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  ipcMain.handle('open-directory-dialog', async () => {
+    const result = await dialog.showOpenDialog({
+      title: 'データ保存先フォルダを選択',
+      properties: ['openDirectory', 'createDirectory'],
+      message: 'データベースファイルを保存するフォルダを選択してください'
+    })
+    return result.canceled ? null : result.filePaths[0]
+  })
 
   createWindow()
 
