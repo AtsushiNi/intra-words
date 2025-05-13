@@ -1,5 +1,3 @@
-import Versions from './components/Versions'
-
 function App(): React.JSX.Element {
   const ipcHandle = (): void => window.electron.ipcRenderer.send('ping')
 
@@ -25,7 +23,6 @@ function App(): React.JSX.Element {
           </a>
         </div>
       </div>
-      <Versions></Versions>
     </>
   )
 }
