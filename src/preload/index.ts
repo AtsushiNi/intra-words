@@ -1,8 +1,14 @@
-import { contextBridge } from 'electron'
+import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
 // Custom APIs for renderer
-const api = {}
+const api = {
+  getWords: () => ipcRenderer.invoke('get-words'),
+  addWord: (word) => ipcRenderer.invoke('add-word', word),
+  searchWords: (query) => ipcRenderer.invoke('search-words', query),
+  getConfig: () => ipcRenderer.invoke('get-config'),
+  updateConfig: (config) => ipcRenderer.invoke('update-config', config)
+}
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise

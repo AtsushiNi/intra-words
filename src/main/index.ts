@@ -1,5 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
+import fs from 'fs'
+import sqlite3 from 'sqlite3'
+import { open } from 'sqlite'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 
@@ -47,6 +50,62 @@ app.whenReady().then(() => {
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
+  })
+
+  // Database setup
+  let db
+  ;(async () => {
+    db = await open({
+      filename: join(app.getAppPath(), 'data/words.db'),
+      driver: sqlite3.Database
+    })
+  })()
+
+  // Config file operations
+  const configPath = join(app.getAppPath(), 'config/config.json')
+
+  ipcMain.handle('get-config', async () => {
+    try {
+      const data = fs.readFileSync(configPath, 'utf8')
+      return JSON.parse(data)
+    } catch {
+      return { databasePath: join(app.getAppPath(), 'data/words.db') }
+    }
+  })
+
+  ipcMain.handle('update-config', async (_, config) => {
+    try {
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
+      return { success: true }
+    } catch (error: unknown) {
+      return { 
+        success: false, 
+        error: error instanceof Error ? error.message : 'Unknown error' 
+      }
+    }
+  })
+
+  // Database operations
+  ipcMain.handle('get-words', async () => {
+    return await db.all('SELECT * FROM words ORDER BY word')
+  })
+
+  ipcMain.handle('add-word', async (_, word) => {
+    await db.run('INSERT INTO words (word, abbreviation, meaning, tags) VALUES (?, ?, ?, ?)', [
+      word.word,
+      word.abbreviation,
+      word.meaning,
+      word.tags
+    ])
+  })
+
+  ipcMain.handle('search-words', async (_, query) => {
+    return await db.all(
+      `SELECT * FROM words 
+     WHERE word LIKE ? OR abbreviation LIKE ? OR meaning LIKE ? OR tags LIKE ? 
+     ORDER BY word`,
+      [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
+    )
   })
 
   // IPC test
