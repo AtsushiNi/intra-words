@@ -81,14 +81,14 @@ function WordList(): React.JSX.Element {
         style={{ marginBottom: '24px' }}
       >
         <Item
-          name="word"
+          name="text"
           label="用語"
           rules={[{ required: true, message: '用語を入力してください' }]}
         >
           <Input placeholder="用語を入力" />
         </Item>
         <Item
-          name="definition"
+          name="description"
           label="説明"
           rules={[{ required: true, message: '説明を入力してください' }]}
         >

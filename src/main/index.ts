@@ -59,6 +59,17 @@ app.whenReady().then(() => {
       filename: join(app.getAppPath(), 'data/words.db'),
       driver: sqlite3.Database
     })
+    
+    // Create words table if not exists
+    await db.exec(`
+      CREATE TABLE IF NOT EXISTS words (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        text TEXT NOT NULL,
+        description TEXT,
+        createdAt TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
+      )
+    `)
   })()
 
   // Config file operations
@@ -87,24 +98,24 @@ app.whenReady().then(() => {
 
   // Database operations
   ipcMain.handle('get-words', async () => {
-    return await db.all('SELECT * FROM words ORDER BY word')
+    return await db.all('SELECT * FROM words ORDER BY text')
   })
 
   ipcMain.handle('add-word', async (_, word) => {
-    await db.run('INSERT INTO words (word, abbreviation, meaning, tags) VALUES (?, ?, ?, ?)', [
-      word.word,
-      word.abbreviation,
-      word.meaning,
-      word.tags
+    await db.run('INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)', [
+      word.text,
+      word.description,
+      new Date().toISOString(),
+      new Date().toISOString()
     ])
   })
 
   ipcMain.handle('search-words', async (_, query) => {
     return await db.all(
-      `SELECT * FROM words 
-     WHERE word LIKE ? OR abbreviation LIKE ? OR meaning LIKE ? OR tags LIKE ? 
-     ORDER BY word`,
-      [`%${query}%`, `%${query}%`, `%${query}%`, `%${query}%`]
+      `SELECT * FROM words
+     WHERE text LIKE ? OR description LIKE ?
+     ORDER BY text`,
+      [`%${query}%`, `%${query}%`]
     )
   })
 
