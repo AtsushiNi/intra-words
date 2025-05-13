@@ -1,17 +1,5 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 
-interface Word {
-  id?: number
-  word: string
-  abbreviation?: string
-  meaning: string
-  tags?: string
-}
-
-interface Config {
-  databasePath: string
-}
-
 declare global {
   interface Window {
     electron: ElectronAPI
