@@ -1,13 +1,18 @@
 import { useState, useEffect } from 'react'
-import { Input, List, Card, Typography, Form, Button, message } from 'antd'
+import { Input, List, Card, Form, Button, message, Modal, FloatButton } from 'antd'
+import { PlusOutlined } from '@ant-design/icons'
 import { Word } from '../../../common/types'
 
-const { Title } = Typography
 const { Search } = Input
 const { Item } = Form
 
-function WordList(): React.JSX.Element {
+interface WordListProps {
+  onNavigateToTextAnalysis: () => void
+}
+
+function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Element {
   const [words, setWords] = useState<Word[]>([])
+  const [isModalOpen, setIsModalOpen] = useState(false)
 
   useEffect(() => {
     const fetchWords = async (): Promise<void> => {
@@ -39,10 +44,28 @@ function WordList(): React.JSX.Element {
   )
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2} style={{ marginBottom: '24px' }}>
-        社内用語集
-      </Title>
+    <div style={{ padding: '24px', overflow: 'hidden' }}>
+      <FloatButton.Group
+        style={{ right: 24, bottom: 24 }}
+        trigger="click"
+        type="primary"
+        icon={<PlusOutlined />}
+      >
+        <FloatButton
+          type="primary"
+          className="word-add-button"
+          description="用語を登録"
+          onClick={() => setIsModalOpen(true)}
+          style={{ width: 100, borderRadius: 8, marginRight: 60 }}
+        />
+        <FloatButton
+          type="primary"
+          className="word-add-button"
+          description="テキストから登録"
+          onClick={onNavigateToTextAnalysis}
+          style={{ width: 120, borderRadius: 8, marginRight: 80 }}
+        />
+      </FloatButton.Group>
       <Search
         placeholder="用語を検索..."
         allowClear
@@ -52,69 +75,83 @@ function WordList(): React.JSX.Element {
         onChange={(e) => setSearchQuery(e.target.value)}
         style={{ marginBottom: '24px' }}
       />
-      <Form
-        form={form}
-        layout="vertical"
-        onFinish={async (values) => {
-          try {
-            await window.api.addWord({
-              text: values.text,
-              description: values.description
-            })
-            const updatedWords = await window.api.getWords()
-            setWords(
-              updatedWords.map((w) => ({
-                text: w.text,
-                description: w.description,
-                id: w.id,
-                createdAt: w.createdAt,
-                updatedAt: w.updatedAt
-              }))
-            )
-            form.resetFields()
-            message.success('用語を登録しました')
-          } catch (err) {
-            message.error('用語の登録に失敗しました')
-            console.error(err)
-          }
-        }}
-        style={{ marginBottom: '24px' }}
+      <Modal
+        title="用語登録"
+        open={isModalOpen}
+        onCancel={() => setIsModalOpen(false)}
+        footer={null}
       >
-        <Item
-          name="text"
-          label="用語"
-          rules={[{ required: true, message: '用語を入力してください' }]}
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={async (values) => {
+            try {
+              await window.api.addWord({
+                text: values.text,
+                description: values.description
+              })
+              const updatedWords = await window.api.getWords()
+              setWords(
+                updatedWords.map((w) => ({
+                  text: w.text,
+                  description: w.description,
+                  id: w.id,
+                  createdAt: w.createdAt,
+                  updatedAt: w.updatedAt
+                }))
+              )
+              form.resetFields()
+              setIsModalOpen(false)
+              message.success('用語を登録しました')
+            } catch (err) {
+              message.error('用語の登録に失敗しました')
+              console.error(err)
+            }
+          }}
         >
-          <Input placeholder="用語を入力" />
-        </Item>
-        <Item
-          name="description"
-          label="説明"
-          rules={[{ required: true, message: '説明を入力してください' }]}
-        >
-          <Input.TextArea placeholder="説明を入力" rows={4} />
-        </Item>
-        <Item name="abbreviation" label="略称">
-          <Input placeholder="略称を入力（任意）" />
-        </Item>
-        <Item name="category" label="カテゴリ">
-          <Input placeholder="カテゴリを入力（任意）" />
-        </Item>
-        <Item>
-          <Button type="primary" htmlType="submit">
-            登録
-          </Button>
-        </Item>
-      </Form>
+          <Item
+            name="text"
+            label="用語"
+            rules={[{ required: true, message: '用語を入力してください' }]}
+          >
+            <Input placeholder="用語を入力" />
+          </Item>
+          <Item
+            name="description"
+            label="説明"
+            rules={[{ required: true, message: '説明を入力してください' }]}
+          >
+            <Input.TextArea placeholder="説明を入力" rows={4} />
+          </Item>
+          <Item name="abbreviation" label="略称">
+            <Input placeholder="略称を入力（任意）" />
+          </Item>
+          <Item name="category" label="カテゴリ">
+            <Input placeholder="カテゴリを入力（任意）" />
+          </Item>
+          <Item>
+            <Button type="primary" htmlType="submit">
+              登録
+            </Button>
+          </Item>
+        </Form>
+      </Modal>
 
       <List
         grid={{ gutter: 16, column: 1 }}
         dataSource={filteredWords}
         renderItem={(word) => (
           <List.Item>
-            <Card title={<>{word.text}</>}>{word.description}</Card>
+            <Card title={<>{word.text}</>} size="small">
+              {word.description}
+            </Card>
           </List.Item>
         )}
+        style={{
+          height: 'calc(100vh - 230px)',
+          overflow: 'auto',
+          paddingRight: '8px'
+        }}
       />
     </div>
   )
