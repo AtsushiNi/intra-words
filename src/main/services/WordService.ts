@@ -1,5 +1,5 @@
 import { open } from 'sqlite'
-import { Word } from '../../common/types'
+import { Word, Tag } from '../../common/types'
 
 export class WordService {
   private db: Awaited<ReturnType<typeof open>>
@@ -38,11 +38,13 @@ export class WordService {
   async getAllWords(): Promise<Word[]> {
     const words = await this.db.all(`
       SELECT w.*, 
-             json_group_array(json_object('id', t.id, 'name', t.name)) as tags_json
+             COALESCE(
+               (SELECT json_group_array(json_object('id', t.id, 'name', t.name))
+               FROM word_tags wt 
+               JOIN tags t ON wt.tag_id = t.id
+               WHERE wt.word_id = w.id
+             ), '[]') as tags_json
       FROM words w
-      LEFT JOIN word_tags wt ON w.id = wt.word_id
-      LEFT JOIN tags t ON wt.tag_id = t.id
-      GROUP BY w.id
       ORDER BY w.text
     `)
 
@@ -53,10 +55,30 @@ export class WordService {
   }
 
   async addWord(word: Word): Promise<void> {
-    await this.db.run(
-      'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-      [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
-    )
+    await this.db.run('BEGIN TRANSACTION')
+    try {
+      // 単語の追加
+      const result = await this.db.run(
+        'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
+        [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
+      )
+
+      if (!result.lastID) {
+        throw new Error('単語の追加に失敗しました')
+      }
+
+      // タグの追加
+      if (word.tags && word.tags.length > 0) {
+        for (const tag of word.tags) {
+          await this.addTag(result.lastID, tag.name)
+        }
+      }
+
+      await this.db.run('COMMIT')
+    } catch (error) {
+      await this.db.run('ROLLBACK')
+      throw error
+    }
   }
 
   async addWords(words: Word[]): Promise<void> {
@@ -68,12 +90,14 @@ export class WordService {
   async searchWords(query: string): Promise<Word[]> {
     const words = await this.db.all(
       `SELECT w.*, 
-             json_group_array(json_object('id', t.id, 'name', t.name)) as tags_json
+             COALESCE(
+               (SELECT json_group_array(json_object('id', t.id, 'name', t.name))
+               FROM word_tags wt 
+               JOIN tags t ON wt.tag_id = t.id
+               WHERE wt.word_id = w.id
+             ), '[]') as tags_json
        FROM words w
-       LEFT JOIN word_tags wt ON w.id = wt.word_id
-       LEFT JOIN tags t ON wt.tag_id = t.id
        WHERE w.text LIKE ? OR w.description LIKE ?
-       GROUP BY w.id
        ORDER BY w.text`,
       [`%${query}%`, `%${query}%`]
     )
@@ -92,12 +116,36 @@ export class WordService {
     if (!word.id) {
       throw new Error('単語IDが指定されていません')
     }
-    await this.db.run('UPDATE words SET text = ?, description = ?, updatedAt = ? WHERE id = ?', [
-      word.text,
-      word.description,
-      new Date().toISOString(),
-      word.id
-    ])
+
+    await this.db.run('BEGIN TRANSACTION')
+    try {
+      // 単語情報の更新
+      await this.db.run('UPDATE words SET text = ?, description = ?, updatedAt = ? WHERE id = ?', [
+        word.text,
+        word.description,
+        new Date().toISOString(),
+        word.id
+      ])
+
+      // 既存タグの削除
+      await this.db.run('DELETE FROM word_tags WHERE word_id = ?', [word.id])
+
+      // 新しいタグの追加
+      if (word.tags && word.tags.length > 0) {
+        for (const tag of word.tags) {
+          await this.addTag(word.id, tag.name)
+        }
+      }
+
+      await this.db.run('COMMIT')
+    } catch (error) {
+      await this.db.run('ROLLBACK')
+      throw error
+    }
+  }
+
+  async getAllTags(): Promise<Tag[]> {
+    return await this.db.all('SELECT id, name FROM tags ORDER BY name')
   }
 
   async addTag(wordId: number, tagName: string): Promise<void> {

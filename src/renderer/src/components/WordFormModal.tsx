@@ -1,6 +1,10 @@
-import React from 'react'
-import { Form, Input, Button, Modal } from 'antd'
-import { Word } from '../../../common/types'
+import React, { useEffect, useState } from 'react'
+import { Form, Input, Button, Modal, Select } from 'antd'
+import { Word, Tag } from '../../../common/types'
+
+interface FormValues extends Omit<Word, 'tags'> {
+  tags?: string[]
+}
 
 const { Item } = Form
 
@@ -23,16 +27,54 @@ export function WordFormModal({
   submitText,
   loading = false
 }: WordFormModalProps): React.JSX.Element {
-  const [form] = Form.useForm<Word>()
+  const [form] = Form.useForm<FormValues>()
+  const [allTags, setAllTags] = useState<Tag[]>([])
+
+  useEffect(() => {
+    const fetchTags = async (): Promise<void> => {
+      try {
+        const tags = await window.api.getTags()
+        setAllTags(tags)
+      } catch (error) {
+        console.error('タグの取得に失敗しました:', error)
+      }
+    }
+    if (open) {
+      fetchTags()
+    }
+  }, [open])
+
+  useEffect(() => {
+    if (initialValues?.tags) {
+      form.setFieldsValue({
+        ...initialValues,
+        tags: initialValues.tags.map((tag) => tag.name)
+      })
+    }
+  }, [initialValues, form])
 
   return (
-    <Modal title={title} open={open} onCancel={onCancel} footer={null} destroyOnClose
+    <Modal
+      title={title}
+      open={open}
+      onCancel={() => {
+        onCancel()
+        form.resetFields()
+      }}
+      footer={null}
     >
       <Form
         form={form}
         initialValues={initialValues || {}}
         layout="vertical"
-        onFinish={onSubmit}
+        onFinish={async (values) => {
+          const tags = values.tags?.map((tagName) => {
+            const existingTag = allTags.find((t) => t.name === tagName)
+            return existingTag || { name: tagName }
+          })
+          await onSubmit({ ...values, tags })
+          form.resetFields()
+        }}
       >
         <Item
           name="text"
@@ -48,11 +90,17 @@ export function WordFormModal({
         >
           <Input.TextArea placeholder="説明を入力" rows={4} />
         </Item>
-        <Item name="abbreviation" label="略称">
-          <Input placeholder="略称を入力（任意）" />
-        </Item>
-        <Item name="category" label="カテゴリ">
-          <Input placeholder="カテゴリを入力（任意）" />
+        <Item name="tags" label="タグ">
+          <Select
+            mode="tags"
+            style={{ width: '100%' }}
+            placeholder="タグを入力"
+            tokenSeparators={[',']}
+            options={allTags.map((tag) => ({
+              value: tag.name,
+              label: tag.name
+            }))}
+          />
         </Item>
         <Item>
           <Button type="primary" htmlType="submit" loading={loading}>

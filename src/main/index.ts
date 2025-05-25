@@ -189,6 +189,10 @@ app.whenReady().then(async () => {
     await wordService.updateWord(word)
   })
 
+  ipcMain.handle('get-tags', async () => {
+    return wordService.getAllTags()
+  })
+
   ipcMain.handle('add-tag', async (_, wordId: number, tagName: string) => {
     await wordService.addTag(wordId, tagName)
   })

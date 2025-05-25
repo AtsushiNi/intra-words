@@ -1,6 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import { WordDefinition } from '../common/ai/deepseek'
-import { Word, Config } from '../common/types'
+import { Word, Config, Tag } from '../common/types'
 
 declare global {
   interface Window {
@@ -16,6 +16,7 @@ declare global {
       addWords: (words: WordDefinition[]) => Promise<void>
       deleteWord: (id: number) => Promise<void>
       updateWord: (word: Word) => Promise<void>
+      getTags: () => Promise<Tag[]>
       addTag: (wordId: number, tagName: string) => Promise<void>
     }
   }
