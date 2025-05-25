@@ -8,7 +8,7 @@ export class DeepSeekHandler implements ApiHandler {
   constructor(options: ApiHandlerOptions) {
     this.options = options
     this.client = new OpenAI({
-      baseURL: 'https://api/deepseek.com/v1',
+      baseURL: 'https://api.deepseek.com/v1',
       apiKey: this.options.deepSeekApiKey
     })
   }
