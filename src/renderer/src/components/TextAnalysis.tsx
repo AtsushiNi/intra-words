@@ -80,14 +80,17 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
           </Title>
           <Form layout="vertical" style={{ marginBottom: '24px' }}>
             {results.map((item, index) => (
-              <div key={index} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}>
+              <div
+                key={index}
+                style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}
+              >
                 <Checkbox
                   checked={selectedIndices.includes(index)}
                   onChange={(e) => {
                     if (e.target.checked) {
                       setSelectedIndices([...selectedIndices, index])
                     } else {
-                      setSelectedIndices(selectedIndices.filter(i => i !== index))
+                      setSelectedIndices(selectedIndices.filter((i) => i !== index))
                     }
                   }}
                 />
