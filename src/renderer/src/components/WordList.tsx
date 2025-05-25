@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Input, List, Card, Form, Button, message, Modal, FloatButton } from 'antd'
-import { DeleteFilled, PlusOutlined } from '@ant-design/icons'
+import { Input, List, Card, Form, Button, message, Modal, FloatButton, Tag } from 'antd'
+import { DeleteFilled, PlusOutlined, TagOutlined } from '@ant-design/icons'
 import { Word } from '../../../common/types'
 
 const { Search } = Input
@@ -12,9 +12,15 @@ interface WordListProps {
 
 function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Element {
   const [words, setWords] = useState<Word[]>([])
+  const [deletingWord, setDeletingWord] = useState<Word | undefined>(undefined)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [filteredWords, setFilteredWords] = useState<Word[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
-  const [deletingWord, setDeletingWord] = useState<Word | undefined>(undefined)
+  const [isTagModalOpen, setIsTagModalOpen] = useState(false)
+  const [currentWord, setCurrentWord] = useState<Word | null>(null)
+  const [newTagName, setNewTagName] = useState('')
+  const [form] = Form.useForm<Word>()
 
   const handleDeleteClick = (word: Word): void => {
     if (word.id === undefined) {
@@ -53,14 +59,23 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
     }
     fetchWords()
   }, [])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [form] = Form.useForm<Word>()
 
-  const filteredWords = words.filter(
-    (word) =>
-      word.text.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      word.description.toLowerCase().includes(searchQuery.toLowerCase())
-  )
+  useEffect(() => {
+    const fetchSearchResults = async (): Promise<void> => {
+      if (searchQuery.trim() === '') {
+        setFilteredWords(words)
+        return
+      }
+      try {
+        const results = await window.api.searchWords(searchQuery)
+        setFilteredWords(results)
+      } catch (err) {
+        message.error('検索に失敗しました')
+        console.error(err)
+      }
+    }
+    fetchSearchResults()
+  }, [searchQuery, words])
 
   return (
     <div style={{ padding: '24px', overflow: 'hidden' }}>
@@ -96,13 +111,14 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           style={{ width: 120, borderRadius: 8, marginRight: 80 }}
         />
       </FloatButton.Group>
-      <Search
+        <Search
         placeholder="用語を検索..."
         allowClear
         enterButton
         size="large"
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
+        onSearch={(value) => setSearchQuery(value)}
         style={{ marginBottom: '24px' }}
       />
       <Modal
@@ -178,6 +194,25 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
               }
             >
               {word.description}
+              <div style={{ marginTop: 8 }}>
+                {word.tags?.map(tag => (
+                  <Tag key={tag.id} icon={<TagOutlined />}>
+                    {tag.name}
+                  </Tag>
+                ))}
+                <Button 
+                  size="small" 
+                  type="dashed" 
+                  icon={<PlusOutlined />}
+                  style={{ marginLeft: 8 }}
+                  onClick={() => {
+                    setCurrentWord(word)
+                    setIsTagModalOpen(true)
+                  }}
+                >
+                  タグ追加
+                </Button>
+              </div>
             </Card>
           </List.Item>
         )}
@@ -187,6 +222,35 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           paddingRight: '8px'
         }}
       />
+
+      <Modal
+        title="タグを追加"
+        open={isTagModalOpen}
+        onOk={async () => {
+          if (!currentWord?.id) return
+          try {
+            await window.api.addTag(currentWord.id, newTagName)
+            const updatedWords = await window.api.getWords()
+            setWords(updatedWords)
+            setNewTagName('')
+            setIsTagModalOpen(false)
+            message.success('タグを追加しました')
+          } catch (err) {
+            message.error('タグの追加に失敗しました')
+            console.error(err)
+          }
+        }}
+        onCancel={() => {
+          setNewTagName('')
+          setIsTagModalOpen(false)
+        }}
+      >
+        <Input
+          placeholder="タグ名を入力"
+          value={newTagName}
+          onChange={(e) => setNewTagName(e.target.value)}
+        />
+      </Modal>
     </div>
   )
 }

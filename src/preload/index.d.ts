@@ -15,6 +15,7 @@ declare global {
       analyzeText: (text: string) => Promise<WordDefinition[]>
       addWords: (words: WordDefinition[]) => Promise<void>
       deleteWord: (id: number) => Promise<void>
+      addTag: (wordId: number, tagName: string) => Promise<void>
     }
   }
 }

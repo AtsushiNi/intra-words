@@ -185,6 +185,10 @@ app.whenReady().then(async () => {
     await wordService.deleteWord(id)
   })
 
+  ipcMain.handle('add-tag', async (_, wordId: number, tagName: string) => {
+    await wordService.addTag(wordId, tagName)
+  })
+
   ipcMain.handle('open-directory-dialog', async () => {
     const result = await dialog.showOpenDialog({
       title: 'データ保存先フォルダを選択',
