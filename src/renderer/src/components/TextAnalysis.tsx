@@ -1,6 +1,6 @@
 import { useState, ReactElement, useEffect } from 'react'
-import { Word } from 'src/common/types'
-import { Button, Input, Typography, message, Form, Checkbox } from 'antd'
+import { Word, Tag } from 'src/common/types'
+import { Button, Input, Typography, message, Form, Checkbox, Select } from 'antd'
 
 const { TextArea } = Input
 const { Title } = Typography
@@ -14,6 +14,19 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
   const [results, setResults] = useState<Word[]>([])
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [allTags, setAllTags] = useState<Tag[]>([])
+
+  useEffect(() => {
+    const fetchTags = async (): Promise<void> => {
+      try {
+        const tags = await window.api.getTags()
+        setAllTags(tags)
+      } catch (error) {
+        console.error('タグの取得に失敗しました:', error)
+      }
+    }
+    fetchTags()
+  }, [])
 
   useEffect(() => {
     // 初期状態では全て選択
@@ -55,7 +68,7 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
   return (
     <div style={{ padding: '24px' }}>
       <Title level={2} style={{ marginBottom: '24px' }}>
-        AI単語生成
+        テキストから登録
       </Title>
       <TextArea
         value={text}
@@ -116,6 +129,23 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
                     }}
                     rows={3}
                     style={{ resize: 'none' }}
+                  />
+                </Form.Item>
+                <Form.Item style={{ flex: 1 }}>
+                  <Select
+                    mode="tags"
+                    placeholder="タグ"
+                    value={item.tags?.map(t => t.name) || []}
+                    onChange={(tagNames) => {
+                      const newResults = [...results]
+                      newResults[index].tags = tagNames.map(name => ({ name }))
+                      setResults(newResults)
+                    }}
+                    style={{ width: '100%' }}
+                    options={allTags.map(tag => ({
+                      value: tag.name,
+                      label: tag.name
+                    }))}
                   />
                 </Form.Item>
               </div>

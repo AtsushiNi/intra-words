@@ -50,10 +50,10 @@ function App(): React.JSX.Element {
                 <SettingOutlined style={{ color: 'white', fontSize: '18px' }} />
               )
             }
-            onClick={() => setCurrentView(currentView === 'settings' ? 'wordList' : 'settings')}
+            onClick={() => setCurrentView(currentView === 'wordList' ? 'settings' : 'wordList')}
             style={{ color: 'white' }}
           >
-            {currentView === 'settings' ? '単語リストに戻る' : ''}
+            {currentView === 'wordList' ? '' : '単語リストに戻る'}
           </Button>
         </Header>
         <Content style={{ padding: '24px' }}>

@@ -128,8 +128,8 @@ app.whenReady().then(async () => {
   await initializeDB()
 
   // Initialize services
-  const analysisService = new AnalysisService()
   const wordService = new WordService(db)
+  const analysisService = new AnalysisService(wordService)
   await wordService.initialize()
 
   // Text analysis IPC handlers
