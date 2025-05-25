@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { Input, List, Card, Form, Button, message, Modal, FloatButton, Tag } from 'antd'
+import { WordFormModal } from './WordFormModal'
+import { Input, List, Card, Button, message, Modal, FloatButton, Tag } from 'antd'
 import { DeleteFilled, EditOutlined, PlusOutlined, TagOutlined } from '@ant-design/icons'
 import { Word } from '../../../common/types'
 
 const { Search } = Input
-const { Item } = Form
 
 interface WordListProps {
   onNavigateToTextAnalysis: () => void
@@ -19,9 +19,53 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isTagModalOpen, setIsTagModalOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
-  const [currentWord, setCurrentWord] = useState<Word | null>(null)
+  const [currentWord, setCurrentWord] = useState<Word | undefined>(undefined)
   const [newTagName, setNewTagName] = useState('')
-  const [form] = Form.useForm<Word>()
+
+  const handleAddTagSubmit = async (): Promise<void> => {
+    if (!currentWord?.id) return
+    try {
+      await window.api.addTag(currentWord.id, newTagName)
+      const updatedWords = await window.api.getWords()
+      setWords(updatedWords)
+      setNewTagName('')
+      setIsTagModalOpen(false)
+      message.success('タグを追加しました')
+    } catch (err) {
+      message.error('タグの追加に失敗しました')
+      console.error(err)
+    }
+  }
+
+  const handleAddWordSubmit = async (values: Word): Promise<void> => {
+    try {
+      await window.api.addWord(values)
+      const updatedWords = await window.api.getWords()
+      setWords(updatedWords)
+      setIsModalOpen(false)
+      message.success('用語を登録しました')
+    } catch (err) {
+      message.error('用語の登録に失敗しました')
+      console.error(err)
+    }
+  }
+
+  const handleEditWordSubmit = async (values: Word): Promise<void> => {
+    if (!currentWord?.id) return
+    try {
+      await window.api.updateWord({
+        ...currentWord,
+        ...values
+      })
+      const updatedWords = await window.api.getWords()
+      setWords(updatedWords)
+      setIsEditModalOpen(false)
+      message.success('用語を更新しました')
+    } catch (err) {
+      message.error('用語の更新に失敗しました')
+      console.error(err)
+    }
+  }
 
   const handleDeleteClick = (word: Word): void => {
     if (word.id === undefined) {
@@ -122,59 +166,21 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
         onSearch={(value) => setSearchQuery(value)}
         style={{ marginBottom: '24px' }}
       />
-      <Modal
-        title="用語登録"
+      <WordFormModal
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
-        footer={null}
-      >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={async (values) => {
-            try {
-              await window.api.addWord({
-                text: values.text,
-                description: values.description
-              })
-              const updatedWords = await window.api.getWords()
-              setWords(updatedWords)
-              form.resetFields()
-              setIsModalOpen(false)
-              message.success('用語を登録しました')
-            } catch (err) {
-              message.error('用語の登録に失敗しました')
-              console.error(err)
-            }
-          }}
-        >
-          <Item
-            name="text"
-            label="用語"
-            rules={[{ required: true, message: '用語を入力してください' }]}
-          >
-            <Input placeholder="用語を入力" />
-          </Item>
-          <Item
-            name="description"
-            label="説明"
-            rules={[{ required: true, message: '説明を入力してください' }]}
-          >
-            <Input.TextArea placeholder="説明を入力" rows={4} />
-          </Item>
-          <Item name="abbreviation" label="略称">
-            <Input placeholder="略称を入力（任意）" />
-          </Item>
-          <Item name="category" label="カテゴリ">
-            <Input placeholder="カテゴリを入力（任意）" />
-          </Item>
-          <Item>
-            <Button type="primary" htmlType="submit">
-              登録
-            </Button>
-          </Item>
-        </Form>
-      </Modal>
+        onSubmit={handleAddWordSubmit}
+        title="用語登録"
+        submitText="登録"
+      />
+      <WordFormModal
+        open={isEditModalOpen}
+        initialValues={currentWord}
+        onCancel={() => setIsEditModalOpen(false)}
+        onSubmit={handleEditWordSubmit}
+        title="用語編集"
+        submitText="更新"
+      />
 
       <List
         grid={{ gutter: 16, column: 1 }}
@@ -238,20 +244,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
       <Modal
         title="タグを追加"
         open={isTagModalOpen}
-        onOk={async () => {
-          if (!currentWord?.id) return
-          try {
-            await window.api.addTag(currentWord.id, newTagName)
-            const updatedWords = await window.api.getWords()
-            setWords(updatedWords)
-            setNewTagName('')
-            setIsTagModalOpen(false)
-            message.success('タグを追加しました')
-          } catch (err) {
-            message.error('タグの追加に失敗しました')
-            console.error(err)
-          }
-        }}
+        onOk={handleAddTagSubmit}
         onCancel={() => {
           setNewTagName('')
           setIsTagModalOpen(false)
@@ -262,60 +255,6 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           value={newTagName}
           onChange={(e) => setNewTagName(e.target.value)}
         />
-      </Modal>
-
-      <Modal
-        title="用語編集"
-        open={isEditModalOpen}
-        onCancel={() => setIsEditModalOpen(false)}
-        footer={null}
-      >
-        <Form
-          initialValues={currentWord || {}}
-          layout="vertical"
-          onFinish={async (values) => {
-            if (!currentWord?.id) return
-            try {
-              await window.api.updateWord({
-                ...currentWord,
-                ...values
-              })
-              const updatedWords = await window.api.getWords()
-              setWords(updatedWords)
-              setIsEditModalOpen(false)
-              message.success('用語を更新しました')
-            } catch (err) {
-              message.error('用語の更新に失敗しました')
-              console.error(err)
-            }
-          }}
-        >
-          <Item
-            name="text"
-            label="用語"
-            rules={[{ required: true, message: '用語を入力してください' }]}
-          >
-            <Input placeholder="用語を入力" />
-          </Item>
-          <Item
-            name="description"
-            label="説明"
-            rules={[{ required: true, message: '説明を入力してください' }]}
-          >
-            <Input.TextArea placeholder="説明を入力" rows={4} />
-          </Item>
-          <Item name="abbreviation" label="略称">
-            <Input placeholder="略称を入力（任意）" />
-          </Item>
-          <Item name="category" label="カテゴリ">
-            <Input placeholder="カテゴリを入力（任意）" />
-          </Item>
-          <Item>
-            <Button type="primary" htmlType="submit">
-              更新
-            </Button>
-          </Item>
-        </Form>
       </Modal>
     </div>
   )
