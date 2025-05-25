@@ -185,6 +185,10 @@ app.whenReady().then(async () => {
     await wordService.deleteWord(id)
   })
 
+  ipcMain.handle('update-word', async (_, word: Word) => {
+    await wordService.updateWord(word)
+  })
+
   ipcMain.handle('add-tag', async (_, wordId: number, tagName: string) => {
     await wordService.addTag(wordId, tagName)
   })

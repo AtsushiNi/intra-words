@@ -13,6 +13,7 @@ const api = {
   analyzeText: (text: string) => ipcRenderer.invoke('analyze-text', text),
   addWords: (words: Word[]) => ipcRenderer.send('add-words', words),
   deleteWord: (id: number) => ipcRenderer.invoke('delete-word', id),
+  updateWord: (word: Word) => ipcRenderer.invoke('update-word', word),
   addTag: (wordId: number, tagName: string) => ipcRenderer.invoke('add-tag', wordId, tagName)
 }
 

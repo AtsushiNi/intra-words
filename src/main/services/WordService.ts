@@ -88,6 +88,18 @@ export class WordService {
     await this.db.run('DELETE FROM words WHERE id = ?', [id])
   }
 
+  async updateWord(word: Word): Promise<void> {
+    if (!word.id) {
+      throw new Error('単語IDが指定されていません')
+    }
+    await this.db.run('UPDATE words SET text = ?, description = ?, updatedAt = ? WHERE id = ?', [
+      word.text,
+      word.description,
+      new Date().toISOString(),
+      word.id
+    ])
+  }
+
   async addTag(wordId: number, tagName: string): Promise<void> {
     await this.db.run('INSERT OR IGNORE INTO tags (name) VALUES (?)', [tagName])
     const tag = await this.db.get('SELECT id FROM tags WHERE name = ?', [tagName])

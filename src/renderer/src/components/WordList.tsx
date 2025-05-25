@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Input, List, Card, Form, Button, message, Modal, FloatButton, Tag } from 'antd'
-import { DeleteFilled, PlusOutlined, TagOutlined } from '@ant-design/icons'
+import { DeleteFilled, EditOutlined, PlusOutlined, TagOutlined } from '@ant-design/icons'
 import { Word } from '../../../common/types'
 
 const { Search } = Input
@@ -18,6 +18,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [isTagModalOpen, setIsTagModalOpen] = useState(false)
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [currentWord, setCurrentWord] = useState<Word | null>(null)
   const [newTagName, setNewTagName] = useState('')
   const [form] = Form.useForm<Word>()
@@ -184,13 +185,24 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
               title={<>{word.text}</>}
               size="small"
               extra={
-                <Button
-                  key={`delete-${word.id}`}
-                  danger
-                  type="text"
-                  onClick={() => handleDeleteClick(word)}
-                  icon={<DeleteFilled />}
-                ></Button>
+                <>
+                  <Button
+                    key={`edit-${word.id}`}
+                    type="text"
+                    onClick={() => {
+                      setCurrentWord(word)
+                      setIsEditModalOpen(true)
+                    }}
+                    icon={<EditOutlined />}
+                  />
+                  <Button
+                    key={`delete-${word.id}`}
+                    danger
+                    type="text"
+                    onClick={() => handleDeleteClick(word)}
+                    icon={<DeleteFilled />}
+                  />
+                </>
               }
             >
               {word.description}
@@ -250,6 +262,60 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           value={newTagName}
           onChange={(e) => setNewTagName(e.target.value)}
         />
+      </Modal>
+
+      <Modal
+        title="用語編集"
+        open={isEditModalOpen}
+        onCancel={() => setIsEditModalOpen(false)}
+        footer={null}
+      >
+        <Form
+          initialValues={currentWord || {}}
+          layout="vertical"
+          onFinish={async (values) => {
+            if (!currentWord?.id) return
+            try {
+              await window.api.updateWord({
+                ...currentWord,
+                ...values
+              })
+              const updatedWords = await window.api.getWords()
+              setWords(updatedWords)
+              setIsEditModalOpen(false)
+              message.success('用語を更新しました')
+            } catch (err) {
+              message.error('用語の更新に失敗しました')
+              console.error(err)
+            }
+          }}
+        >
+          <Item
+            name="text"
+            label="用語"
+            rules={[{ required: true, message: '用語を入力してください' }]}
+          >
+            <Input placeholder="用語を入力" />
+          </Item>
+          <Item
+            name="description"
+            label="説明"
+            rules={[{ required: true, message: '説明を入力してください' }]}
+          >
+            <Input.TextArea placeholder="説明を入力" rows={4} />
+          </Item>
+          <Item name="abbreviation" label="略称">
+            <Input placeholder="略称を入力（任意）" />
+          </Item>
+          <Item name="category" label="カテゴリ">
+            <Input placeholder="カテゴリを入力（任意）" />
+          </Item>
+          <Item>
+            <Button type="primary" htmlType="submit">
+              更新
+            </Button>
+          </Item>
+        </Form>
       </Modal>
     </div>
   )
