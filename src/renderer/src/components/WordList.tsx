@@ -112,7 +112,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           style={{ width: 120, borderRadius: 8, marginRight: 80 }}
         />
       </FloatButton.Group>
-        <Search
+      <Search
         placeholder="用語を検索..."
         allowClear
         enterButton
@@ -207,14 +207,14 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
             >
               {word.description}
               <div style={{ marginTop: 8 }}>
-                {word.tags?.map(tag => (
+                {word.tags?.map((tag) => (
                   <Tag key={tag.id} icon={<TagOutlined />}>
                     {tag.name}
                   </Tag>
                 ))}
-                <Button 
-                  size="small" 
-                  type="dashed" 
+                <Button
+                  size="small"
+                  type="dashed"
                   icon={<PlusOutlined />}
                   style={{ marginLeft: 8 }}
                   onClick={() => {
