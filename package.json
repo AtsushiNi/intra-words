@@ -21,11 +21,15 @@
     "build:linux": "electron-vite build && electron-builder --linux"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.52.0",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
+    "@types/axios": "^0.14.4",
     "@types/sqlite3": "^5.1.0",
     "antd": "^5.25.1",
+    "axios": "^1.9.0",
     "electron-updater": "^6.3.9",
+    "openai": "^4.100.0",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
   },

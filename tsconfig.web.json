@@ -5,7 +5,8 @@
     "src/renderer/src/**/*",
     "src/renderer/src/**/*.tsx",
     "src/preload/*.d.ts",
-    "src/common/types.ts"
+    "src/common/types.ts",
+    "src/common/ai/*.ts"
   ],
   "compilerOptions": {
     "composite": true,

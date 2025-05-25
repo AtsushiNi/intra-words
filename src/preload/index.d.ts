@@ -1,4 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
+import { WordDefinition } from '../common/ai/deepseek'
+import { Word, Config } from '../common/types'
 
 declare global {
   interface Window {
@@ -10,6 +12,8 @@ declare global {
       getConfig: () => Promise<Config>
       updateConfig: (config: Config) => Promise<void>
       openDirectoryDialog: () => Promise<string>
+      analyzeText: (text: string) => Promise<WordDefinition[]>
+      addWords: (words: WordDefinition[]) => Promise<void>
     }
   }
 }

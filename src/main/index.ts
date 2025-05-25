@@ -1,11 +1,15 @@
+import { config } from 'dotenv'
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
-import { Word } from '../common/types'
 import { join } from 'path'
 import fs from 'fs'
 import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { AnalysisService } from './services/analysis'
+import { Word } from '../common/types'
+
+config()
 
 function createWindow(): void {
   // Create the browser window.
@@ -133,6 +137,29 @@ app.whenReady().then(async () => {
   // Initialize database
   await initializeDB()
 
+  // Initialize AnalysisService
+  const analysisService = new AnalysisService()
+
+  // Text analysis IPC handlers
+  ipcMain.handle('analyze-text', async (_, text: string) => {
+    try {
+      const results = await analysisService.analyzeText(text)
+      return results
+    } catch (error) {
+      console.error('Text analysis failed:', error)
+      throw error
+    }
+  })
+
+  ipcMain.on('add-words', async (_, words: Word[]) => {
+    for (const word of words) {
+      await db.run(
+        'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
+        [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
+      )
+    }
+  })
+
   ipcMain.handle('get-config', async () => {
     try {
       const data = fs.readFileSync(configPath, 'utf8')
@@ -167,7 +194,7 @@ app.whenReady().then(async () => {
     }))
   })
 
-  ipcMain.handle('add-word', async (_, word: Omit<Word, 'id' | 'createdAt' | 'updatedAt'>) => {
+  ipcMain.handle('add-word', async (_, word: { text: string; description: string }) => {
     await db.run(
       'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
       [word.text, word.description, new Date().toISOString(), new Date().toISOString()]

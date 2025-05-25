@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
+import { Word } from '../common/types'
 
 // Custom APIs for renderer
 const api = {
@@ -8,7 +9,9 @@ const api = {
   searchWords: (query) => ipcRenderer.invoke('search-words', query),
   getConfig: () => ipcRenderer.invoke('get-config'),
   updateConfig: (config) => ipcRenderer.invoke('update-config', config),
-  openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog')
+  openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
+  analyzeText: (text: string) => ipcRenderer.invoke('analyze-text', text),
+  addWords: (words: Word[]) => ipcRenderer.send('add-words', words)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
