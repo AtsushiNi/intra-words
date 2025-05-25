@@ -7,6 +7,7 @@ import { open } from 'sqlite'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { AnalysisService } from './services/analysis'
+import { WordService } from './services/WordService'
 import { Word } from '../common/types'
 
 config()
@@ -118,17 +119,6 @@ app.whenReady().then(async () => {
           `Failed to initialize database folder at ${dbPath}: ${error instanceof Error ? error.message : String(error)}`
         )
       }
-
-      // Create words table if not exists
-      await db.exec(`
-        CREATE TABLE IF NOT EXISTS words (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          text TEXT NOT NULL,
-          description TEXT,
-          createdAt TEXT NOT NULL,
-          updatedAt TEXT NOT NULL
-        )
-      `)
     } catch (error) {
       console.error('Database initialization failed:', error)
     }
@@ -137,8 +127,10 @@ app.whenReady().then(async () => {
   // Initialize database
   await initializeDB()
 
-  // Initialize AnalysisService
+  // Initialize services
   const analysisService = new AnalysisService()
+  const wordService = new WordService(db)
+  await wordService.initialize()
 
   // Text analysis IPC handlers
   ipcMain.handle('analyze-text', async (_, text: string) => {
@@ -148,15 +140,6 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error('Text analysis failed:', error)
       throw error
-    }
-  })
-
-  ipcMain.on('add-words', async (_, words: Word[]) => {
-    for (const word of words) {
-      await db.run(
-        'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-        [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
-      )
     }
   })
 
@@ -181,42 +164,22 @@ app.whenReady().then(async () => {
     }
   })
 
-  // Database operations
+  // Word operations
   ipcMain.handle('get-words', async () => {
-    if (!db) {
-      throw new Error('Database not initialized')
-    }
-    const rows = await db.all('SELECT * FROM words ORDER BY text')
-    return rows.map((row) => ({
-      ...row,
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt)
-    }))
+    return wordService.getAllWords()
   })
 
-  ipcMain.handle('add-word', async (_, word: { text: string; description: string }) => {
-    await db.run(
-      'INSERT INTO words (text, description, createdAt, updatedAt) VALUES (?, ?, ?, ?)',
-      [word.text, word.description, new Date().toISOString(), new Date().toISOString()]
-    )
+  ipcMain.handle('add-word', async (_, word: Word) => {
+    await wordService.addWord(word)
+  })
+
+  ipcMain.on('add-words', async (_, words: Word[]) => {
+    await wordService.addWords(words)
   })
 
   ipcMain.handle('search-words', async (_, query) => {
-    const rows = await db.all(
-      `SELECT * FROM words
-     WHERE text LIKE ? OR description LIKE ?
-     ORDER BY text`,
-      [`%${query}%`, `%${query}%`]
-    )
-    return rows.map((row) => ({
-      ...row,
-      createdAt: new Date(row.createdAt),
-      updatedAt: new Date(row.updatedAt)
-    }))
+    return wordService.searchWords(query)
   })
-
-  // IPC test
-  ipcMain.on('ping', () => console.log('pong'))
 
   ipcMain.handle('open-directory-dialog', async () => {
     const result = await dialog.showOpenDialog({

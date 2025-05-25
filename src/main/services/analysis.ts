@@ -22,7 +22,7 @@ export class AnalysisService {
 
     console.log('Starting text analysis...')
     const systemPrompt =
-      '与えられたテキストから重要な用語とその定義を抽出してください。JSON形式で{word: string, description: string}の配列をwordsという名前で返してください。'
+      '与えられたテキストから重要な用語とその定義を抽出してください。JSON形式で{word: string, description: string}の配列をwordsという名前で返してください。テキストと同じ言語で内容を記述すること'
 
     const resultText = await this.api.ask(systemPrompt, text)
     const result = JSON.parse(resultText)
