@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Input, List, Card, Form, Button, message, Modal, FloatButton } from 'antd'
-import { PlusOutlined } from '@ant-design/icons'
+import { DeleteFilled, PlusOutlined } from '@ant-design/icons'
 import { Word } from '../../../common/types'
 
 const { Search } = Input
@@ -13,20 +13,39 @@ interface WordListProps {
 function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Element {
   const [words, setWords] = useState<Word[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [deletingWord, setDeletingWord] = useState<Word | undefined>(undefined)
+
+  const handleDeleteClick = (word: Word): void => {
+    if (word.id === undefined) {
+      message.error('単語IDが不正です')
+      return
+    }
+    setDeletingWord(word)
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleDeleteWord = async (): Promise<void> => {
+    if (deletingWord?.id === undefined) {
+      message.error('単語IDが不正です')
+      return
+    }
+    try {
+      await window.api.deleteWord(deletingWord.id)
+      setWords((prevWords) => prevWords.filter((word) => word.id !== deletingWord.id))
+      message.success('単語を削除しました')
+      setIsDeleteModalOpen(false)
+    } catch (err) {
+      message.error('単語の削除に失敗しました')
+      console.error(err)
+    }
+  }
 
   useEffect(() => {
     const fetchWords = async (): Promise<void> => {
       try {
         const words = await window.api.getWords()
-        setWords(
-          words.map((w) => ({
-            text: w.text,
-            description: w.description,
-            id: w.id,
-            createdAt: w.createdAt,
-            updatedAt: w.updatedAt
-          }))
-        )
+        setWords(words)
       } catch (err) {
         message.error('単語の取得に失敗しました')
         console.error(err)
@@ -45,6 +64,17 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
 
   return (
     <div style={{ padding: '24px', overflow: 'hidden' }}>
+      <Modal
+        title="単語を削除しますか？"
+        open={isDeleteModalOpen}
+        onOk={handleDeleteWord}
+        onCancel={() => setIsDeleteModalOpen(false)}
+        okText="削除"
+        cancelText="キャンセル"
+        okButtonProps={{ danger: true }}
+      >
+        <p>「{deletingWord?.text}」を削除しますか？この操作は元に戻せません。</p>
+      </Modal>
       <FloatButton.Group
         style={{ right: 24, bottom: 24 }}
         trigger="click"
@@ -91,15 +121,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
                 description: values.description
               })
               const updatedWords = await window.api.getWords()
-              setWords(
-                updatedWords.map((w) => ({
-                  text: w.text,
-                  description: w.description,
-                  id: w.id,
-                  createdAt: w.createdAt,
-                  updatedAt: w.updatedAt
-                }))
-              )
+              setWords(updatedWords)
               form.resetFields()
               setIsModalOpen(false)
               message.success('用語を登録しました')
@@ -142,7 +164,19 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
         dataSource={filteredWords}
         renderItem={(word) => (
           <List.Item>
-            <Card title={<>{word.text}</>} size="small">
+            <Card
+              title={<>{word.text}</>}
+              size="small"
+              extra={
+                <Button
+                  key={`delete-${word.id}`}
+                  danger
+                  type="text"
+                  onClick={() => handleDeleteClick(word)}
+                  icon={<DeleteFilled />}
+                ></Button>
+              }
+            >
               {word.description}
             </Card>
           </List.Item>

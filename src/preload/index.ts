@@ -11,7 +11,8 @@ const api = {
   updateConfig: (config) => ipcRenderer.invoke('update-config', config),
   openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
   analyzeText: (text: string) => ipcRenderer.invoke('analyze-text', text),
-  addWords: (words: Word[]) => ipcRenderer.send('add-words', words)
+  addWords: (words: Word[]) => ipcRenderer.send('add-words', words),
+  deleteWord: (id: number) => ipcRenderer.invoke('delete-word', id)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

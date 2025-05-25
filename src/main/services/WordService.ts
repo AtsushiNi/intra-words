@@ -45,4 +45,8 @@ export class WordService {
       [`%${query}%`, `%${query}%`]
     )
   }
+
+  async deleteWord(id: number): Promise<void> {
+    await this.db.run('DELETE FROM words WHERE id = ?', [id])
+  }
 }

@@ -14,6 +14,7 @@ declare global {
       openDirectoryDialog: () => Promise<string>
       analyzeText: (text: string) => Promise<WordDefinition[]>
       addWords: (words: WordDefinition[]) => Promise<void>
+      deleteWord: (id: number) => Promise<void>
     }
   }
 }

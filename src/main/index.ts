@@ -181,6 +181,10 @@ app.whenReady().then(async () => {
     return wordService.searchWords(query)
   })
 
+  ipcMain.handle('delete-word', async (_, id: number) => {
+    await wordService.deleteWord(id)
+  })
+
   ipcMain.handle('open-directory-dialog', async () => {
     const result = await dialog.showOpenDialog({
       title: 'データ保存先フォルダを選択',
