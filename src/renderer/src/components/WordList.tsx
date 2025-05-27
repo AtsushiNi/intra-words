@@ -202,6 +202,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
             <Card
               title={<>{word.text}</>}
               size="small"
+              bodyStyle={{ whiteSpace: 'pre-wrap' }}
               extra={
                 <>
                   <Button

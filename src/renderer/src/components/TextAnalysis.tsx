@@ -1,4 +1,4 @@
-import { useState, ReactElement, useEffect } from 'react'
+import { useState, ReactElement, useEffect, useRef } from 'react'
 import { Word, Tag } from 'src/common/types'
 import { Button, Input, Typography, message, Form, Checkbox, Select } from 'antd'
 
@@ -10,11 +10,18 @@ interface TextAnalysisProps {
 }
 
 export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
+  const textAreaRef = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
   const [results, setResults] = useState<Word[]>([])
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [allTags, setAllTags] = useState<Tag[]>([])
+
+  useEffect(() => {
+    if (textAreaRef.current) {
+      textAreaRef.current.focus()
+    }
+  }, [])
 
   useEffect(() => {
     const fetchTags = async (): Promise<void> => {
@@ -71,6 +78,7 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
         テキストから登録
       </Title>
       <TextArea
+        ref={textAreaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="登録したい用語を含むテキストを入力してください"
