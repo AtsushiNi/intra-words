@@ -230,7 +230,7 @@ app.whenReady().then(async () => {
       })
 
       if (canceled || !filePaths[0]) {
-        return { success: false, count: 0 }
+        return 0
       }
 
       const filePath = filePaths[0]

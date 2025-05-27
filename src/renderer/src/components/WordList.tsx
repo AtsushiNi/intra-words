@@ -116,10 +116,36 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
     }
   }
 
+  const handleImportWords = async (): Promise<void> => {
+    try {
+      const importedCount = await window.api.importWords()
+      messageApi.success(`${importedCount}件の用語をインポートしました`)
+      const [updatedWords, updatedTags] = await Promise.all([
+        window.api.getWords(),
+        window.api.getTags()
+      ])
+      setWords(updatedWords)
+      setAllTags(updatedTags)
+    } catch (err) {
+      messageApi.error('インポートに失敗しました')
+      console.error(err)
+    }
+  }
+
+  const handleExportWords = async (): Promise<void> => {
+    try {
+      await window.api.exportWords(filteredWords)
+      messageApi.success('用語リストをエクスポートしました')
+    } catch (err) {
+      messageApi.error('エクスポートに失敗しました')
+      console.error(err)
+    }
+  }
+
   return (
     <>
       {contextHolder}
-      <div style={{ padding: '24px', overflow: 'hidden' }}>
+      <div style={{ padding: '24px', paddingTop: '0px', overflow: 'hidden' }}>
         <Modal
           title="単語を削除しますか？"
           open={isDeleteModalOpen}
@@ -151,43 +177,17 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
             onClick={onNavigateToTextAnalysis}
             style={{ width: 120, borderRadius: 8, marginRight: 80 }}
           />
-          <FloatButton
-            type="primary"
-            className="word-export-button"
-            description="用語をエクスポート"
-            onClick={async () => {
-              try {
-                await window.api.exportWords(filteredWords)
-                messageApi.success('用語リストをエクスポートしました')
-              } catch (err) {
-                messageApi.error('エクスポートに失敗しました')
-                console.error(err)
-              }
-            }}
-            style={{ width: 120, borderRadius: 8, marginRight: 80 }}
-          />
-          <FloatButton
-            type="primary"
-            className="word-import-button"
-            description="用語をインポート"
-            onClick={async () => {
-              try {
-                const importedCount = await window.api.importWords()
-                messageApi.success(`${importedCount}件の用語をインポートしました`)
-                const [updatedWords, updatedTags] = await Promise.all([
-                  window.api.getWords(),
-                  window.api.getTags()
-                ])
-                setWords(updatedWords)
-                setAllTags(updatedTags)
-              } catch (err) {
-                messageApi.error('インポートに失敗しました')
-                console.error(err)
-              }
-            }}
-            style={{ width: 120, borderRadius: 8, marginRight: 80 }}
-          />
         </FloatButton.Group>
+        <div
+          style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '15px' }}
+        >
+          <Button color="default" variant="dashed" onClick={handleImportWords}>
+            import
+          </Button>
+          <Button color="default" variant="dashed" onClick={handleExportWords}>
+            export
+          </Button>
+        </div>
         <div style={{ marginBottom: '24px' }}>
           <Search
             placeholder="用語を検索..."
@@ -274,7 +274,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
             </List.Item>
           )}
           style={{
-            height: 'calc(100vh - 260px)',
+            height: 'calc(100vh - 280px)',
             overflow: 'auto',
             paddingRight: '8px'
           }}
