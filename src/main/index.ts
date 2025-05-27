@@ -199,10 +199,10 @@ app.whenReady().then(async () => {
 
   ipcMain.handle('export-words', async (_, words: Word[]) => {
     try {
-      const filteredWords = words.map(word => ({
+      const filteredWords = words.map((word) => ({
         text: word.text,
         description: word.description,
-        tags: word.tags?.map(tag => ({ name: tag.name }))
+        tags: word.tags?.map((tag) => ({ name: tag.name }))
       }))
       const jsonData = JSON.stringify(filteredWords, null, 2)
       const { filePath } = await dialog.showSaveDialog({
@@ -218,6 +218,34 @@ app.whenReady().then(async () => {
     } catch (error) {
       console.error('Export failed:', error)
       return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+
+  ipcMain.handle('import-words', async () => {
+    try {
+      const { filePaths, canceled } = await dialog.showOpenDialog({
+        title: 'インポートするJSONファイルを選択',
+        properties: ['openFile'],
+        filters: [{ name: 'JSON Files', extensions: ['json'] }]
+      })
+
+      if (canceled || !filePaths[0]) {
+        return { success: false, count: 0 }
+      }
+
+      const filePath = filePaths[0]
+      const data = fs.readFileSync(filePath, 'utf8')
+      const words: Word[] = JSON.parse(data)
+
+      if (!Array.isArray(words)) {
+        throw new Error('Invalid format: Expected array of words')
+      }
+
+      await wordService.addWords(words)
+      return words.length
+    } catch (error) {
+      console.error('Import failed:', error)
+      return 0
     }
   })
 

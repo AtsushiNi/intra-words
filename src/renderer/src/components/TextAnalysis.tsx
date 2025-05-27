@@ -1,6 +1,6 @@
 import { useState, ReactElement, useEffect, useRef } from 'react'
 import { Word, Tag } from 'src/common/types'
-import { Button, Input, Typography, message, Form, Checkbox, Select } from 'antd'
+import { Button, Input, Typography, Form, Checkbox, Select, message } from 'antd'
 
 const { TextArea } = Input
 const { Title } = Typography
@@ -10,6 +10,7 @@ interface TextAnalysisProps {
 }
 
 export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
+  const [messageApi, contextHolder] = message.useMessage()
   const textAreaRef = useRef<HTMLTextAreaElement>(null)
   const [text, setText] = useState('')
   const [results, setResults] = useState<Word[]>([])
@@ -42,7 +43,7 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
 
   const handleAnalyze = async (): Promise<void> => {
     if (!text.trim()) {
-      message.error('テキストを入力してください')
+      messageApi.error('テキストを入力してください')
       return
     }
 
@@ -52,7 +53,7 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
       const results = await window.api.analyzeText(text)
       setResults(results)
     } catch (err) {
-      message.error('解析に失敗しました')
+      messageApi.error('解析に失敗しました')
       console.error(err)
     } finally {
       setIsLoading(false)
@@ -65,105 +66,108 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
       onAddWords(results)
       setResults([])
       setText('')
-      message.success('単語を登録しました')
+      messageApi.success('単語を登録しました')
     } catch (error) {
-      message.error('単語登録に失敗しました')
+      messageApi.error('単語登録に失敗しました')
       console.error(error)
     }
   }
 
   return (
-    <div style={{ padding: '24px' }}>
-      <Title level={2} style={{ marginBottom: '24px' }}>
-        テキストから登録
-      </Title>
-      <TextArea
-        ref={textAreaRef}
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="登録したい用語を含むテキストを入力してください"
-        rows={5}
-        style={{ marginBottom: '16px' }}
-      />
-      <Button
-        type="primary"
-        onClick={handleAnalyze}
-        loading={isLoading}
-        style={{ marginBottom: '24px' }}
-      >
-        解析する
-      </Button>
+    <>
+      {contextHolder}
+      <div style={{ padding: '24px' }}>
+        <Title level={2} style={{ marginBottom: '24px' }}>
+          テキストから登録
+        </Title>
+        <TextArea
+          ref={textAreaRef}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder="登録したい用語を含むテキストを入力してください"
+          rows={5}
+          style={{ marginBottom: '16px' }}
+        />
+        <Button
+          type="primary"
+          onClick={handleAnalyze}
+          loading={isLoading}
+          style={{ marginBottom: '24px' }}
+        >
+          解析する
+        </Button>
 
-      {results.length > 0 && (
-        <div>
-          <Title level={4} style={{ marginBottom: '16px' }}>
-            解析結果
-          </Title>
-          <Form layout="vertical" style={{ marginBottom: '24px' }}>
-            {results.map((item, index) => (
-              <div
-                key={index}
-                style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}
-              >
-                <Checkbox
-                  checked={selectedIndices.includes(index)}
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      setSelectedIndices([...selectedIndices, index])
-                    } else {
-                      setSelectedIndices(selectedIndices.filter((i) => i !== index))
-                    }
-                  }}
-                />
-                <Form.Item style={{ flex: 1 }}>
-                  <Input
-                    placeholder="用語"
-                    value={item.text}
+        {results.length > 0 && (
+          <div>
+            <Title level={4} style={{ marginBottom: '16px' }}>
+              解析結果
+            </Title>
+            <Form layout="vertical" style={{ marginBottom: '24px' }}>
+              {results.map((item, index) => (
+                <div
+                  key={index}
+                  style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}
+                >
+                  <Checkbox
+                    checked={selectedIndices.includes(index)}
                     onChange={(e) => {
-                      const newResults = [...results]
-                      newResults[index].text = e.target.value
-                      setResults(newResults)
+                      if (e.target.checked) {
+                        setSelectedIndices([...selectedIndices, index])
+                      } else {
+                        setSelectedIndices(selectedIndices.filter((i) => i !== index))
+                      }
                     }}
                   />
-                </Form.Item>
-                <Form.Item style={{ flex: 2 }}>
-                  <Input.TextArea
-                    placeholder="説明"
-                    value={item.description}
-                    onChange={(e) => {
-                      const newResults = [...results]
-                      newResults[index].description = e.target.value
-                      setResults(newResults)
-                    }}
-                    rows={3}
-                    style={{ resize: 'none' }}
-                  />
-                </Form.Item>
-                <Form.Item style={{ flex: 1 }}>
-                  <Select
-                    mode="tags"
-                    placeholder="タグ"
-                    value={item.tags?.map(t => t.name) || []}
-                    onChange={(tagNames) => {
-                      const newResults = [...results]
-                      newResults[index].tags = tagNames.map(name => ({ name }))
-                      setResults(newResults)
-                    }}
-                    style={{ width: '100%' }}
-                    options={allTags.map(tag => ({
-                      value: tag.name,
-                      label: tag.name
-                    }))}
-                  />
-                </Form.Item>
-              </div>
-            ))}
-          </Form>
-          <Button type="primary" onClick={handleConfirm} block>
-            単語を登録
-          </Button>
-        </div>
-      )}
-    </div>
+                  <Form.Item style={{ flex: 1 }}>
+                    <Input
+                      placeholder="用語"
+                      value={item.text}
+                      onChange={(e) => {
+                        const newResults = [...results]
+                        newResults[index].text = e.target.value
+                        setResults(newResults)
+                      }}
+                    />
+                  </Form.Item>
+                  <Form.Item style={{ flex: 2 }}>
+                    <Input.TextArea
+                      placeholder="説明"
+                      value={item.description}
+                      onChange={(e) => {
+                        const newResults = [...results]
+                        newResults[index].description = e.target.value
+                        setResults(newResults)
+                      }}
+                      rows={3}
+                      style={{ resize: 'none' }}
+                    />
+                  </Form.Item>
+                  <Form.Item style={{ flex: 1 }}>
+                    <Select
+                      mode="tags"
+                      placeholder="タグ"
+                      value={item.tags?.map(t => t.name) || []}
+                      onChange={(tagNames) => {
+                        const newResults = [...results]
+                        newResults[index].tags = tagNames.map(name => ({ name }))
+                        setResults(newResults)
+                      }}
+                      style={{ width: '100%' }}
+                      options={allTags.map(tag => ({
+                        value: tag.name,
+                        label: tag.name
+                      }))}
+                    />
+                  </Form.Item>
+                </div>
+              ))}
+            </Form>
+            <Button type="primary" onClick={handleConfirm} block>
+              単語を登録
+            </Button>
+          </div>
+        )}
+      </div>
+    </>
   )
 }
