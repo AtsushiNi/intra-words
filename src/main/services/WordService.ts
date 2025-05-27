@@ -1,8 +1,50 @@
 import { open } from 'sqlite'
+import Fuse from 'fuse.js'
+import moji from 'moji'
+import TinySegmenter from 'tiny-segmenter'
 import { Word, Tag } from '../../common/types'
+
+const segmenter = new TinySegmenter()
+
+function _tokenize(text: string, tokenizer: string): string[] {
+  if (tokenizer === 'trigram') {
+    return text.match(/.{1,3}/g) || []
+  } else {
+    return segmenter.segment(text)
+  }
+}
+
+function tokenize(text: string, tokenizer: string): string[] {
+  const query = moji(text)
+    .convert('HK', 'ZK')
+    .convert('ZS', 'HS')
+    .convert('ZE', 'HE')
+    .toString()
+    .trim()
+  return _tokenize(query, tokenizer)
+    .map((word) => {
+      if (word !== ' ') {
+        return moji(word).convert('HG', 'KK').toString().toLowerCase()
+      }
+      return ''
+    })
+    .filter((v) => v)
+}
+
+function encode(text: string): string {
+  return moji(text)
+    .convert('HK', 'ZK')
+    .convert('ZS', 'HS')
+    .convert('ZE', 'HE')
+    .convert('HG', 'KK')
+    .toString()
+    .trim()
+    .toLowerCase()
+}
 
 export class WordService {
   private db: Awaited<ReturnType<typeof open>>
+  private fuse?: Fuse<Word>
 
   constructor(db: Awaited<ReturnType<typeof open>>) {
     this.db = db
@@ -83,51 +125,79 @@ export class WordService {
     }
   }
 
-  async searchWords(params: { textQuery: string; tagNames: string[] }): Promise<Word[]> {
-    let query = `
+  private async buildSearchIndex(): Promise<void> {
+    const words = await this.getAllWords()
+    const processedWords = words.map((word) => ({
+      ...word,
+      search_text: encode(word.text),
+      search_description: encode(word.description),
+      tokenized_text: tokenize(word.text, 'segmenter'),
+      tokenized_description: tokenize(word.description, 'segmenter')
+    }))
+
+    this.fuse = new Fuse(processedWords, {
+      keys: [
+        'text',
+        'description',
+        'search_text',
+        'search_description',
+        'tokenized_text',
+        'tokenized_description'
+      ],
+      includeScore: true,
+      threshold: 0.4,
+      ignoreLocation: true,
+      shouldSort: true
+    })
+  }
+
+  private async filterByTags(tagNames: string[]): Promise<Word[]> {
+    if (tagNames.length === 0) {
+      return await this.getAllWords()
+    }
+
+    const query = `
       SELECT DISTINCT w.*
       FROM words w
-    `
-
-    const conditions: string[] = []
-    const values: string[] = []
-
-    // 単語テキスト検索条件
-    if (params.textQuery.trim() !== '') {
-      conditions.push('(w.text LIKE ? OR w.description LIKE ?)')
-      values.push(`%${params.textQuery}%`, `%${params.textQuery}%`)
-    }
-
-    // タグ検索条件
-    if (params.tagNames.length > 0) {
-      const tagConditions = params.tagNames.map(() => 't.name = ?').join(' OR ')
-      conditions.push(`w.id IN (
+      WHERE w.id IN (
         SELECT wt.word_id FROM word_tags wt
         JOIN tags t ON wt.tag_id = t.id
-        WHERE ${tagConditions}
-      )`)
-      values.push(...params.tagNames)
-    }
+        WHERE ${tagNames.map(() => 't.name = ?').join(' OR ')}
+      )
+      ORDER BY w.text
+    `
 
-    if (conditions.length > 0) {
-      query += ` WHERE ${conditions.join(' AND ')}`
-    }
-
-    query += ' ORDER BY w.text'
-
-    const words = await this.db.all(query, values)
+    const words = await this.db.all(query, tagNames)
 
     // 各単語のタグを取得
     for (const word of words) {
       const tags = await this.getTagsByWord(word.id)
-      word.tags = tags.map(tag => ({ name: tag.name })) // idを除外
+      word.tags = tags.map((tag) => ({ name: tag.name }))
     }
 
-    return words.map(word => ({
-      text: word.text,
-      description: word.description,
-      tags: word.tags
-    }))
+    return words
+  }
+
+  async searchWords(params: { textQuery: string; tagNames: string[] }): Promise<Word[]> {
+    // タグでフィルタリング
+    let words = await this.filterByTags(params.tagNames)
+
+    // テキスト検索
+    if (params.textQuery.trim() !== '') {
+      if (!this.fuse) await this.buildSearchIndex()
+      const results = this.fuse!.search(params.textQuery)
+      const searchedWords = results.map((r) => r.item)
+
+      // タグフィルタリング結果とテキスト検索結果の積集合を取る
+      if (params.tagNames.length > 0) {
+        const wordIds = new Set(words.map((w) => w.id))
+        words = searchedWords.filter((w) => wordIds.has(w.id))
+      } else {
+        words = searchedWords
+      }
+    }
+
+    return words
   }
 
   async deleteWord(id: number): Promise<void> {

@@ -29,9 +29,12 @@
     "antd": "^5.25.1",
     "axios": "^1.9.0",
     "electron-updater": "^6.3.9",
+    "fuse.js": "^7.1.0",
+    "moji": "^0.5.1",
     "openai": "^4.100.0",
     "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
+    "sqlite3": "^5.1.7",
+    "tiny-segmenter": "^0.2.0"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
