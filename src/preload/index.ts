@@ -6,7 +6,8 @@ import { Word } from '../common/types'
 const api = {
   getWords: () => ipcRenderer.invoke('get-words'),
   addWord: (word) => ipcRenderer.invoke('add-word', word),
-  searchWords: (query) => ipcRenderer.invoke('search-words', query),
+  searchWords: (params: { textQuery: string; tagNames: string[] }) =>
+    ipcRenderer.invoke('search-words', params),
   getConfig: () => ipcRenderer.invoke('get-config'),
   updateConfig: (config) => ipcRenderer.invoke('update-config', config),
   openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),

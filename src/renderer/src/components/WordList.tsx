@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { WordFormModal } from './WordFormModal'
-import { Input, List, Card, Button, message, Modal, FloatButton, Tag } from 'antd'
+import { Input, List, Card, Button, message, Modal, FloatButton, Tag as AntdTag } from 'antd'
 import { DeleteFilled, EditOutlined, PlusOutlined, TagOutlined } from '@ant-design/icons'
-import { Word } from '../../../common/types'
+import { Word, Tag } from '../../../common/types'
 
 const { Search } = Input
 
@@ -14,6 +14,8 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
   const [words, setWords] = useState<Word[]>([])
   const [deletingWord, setDeletingWord] = useState<Word | undefined>(undefined)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<Tag[]>([])
+  const [allTags, setAllTags] = useState<Tag[]>([])
   const [filteredWords, setFilteredWords] = useState<Word[]>([])
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -21,26 +23,30 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
   const [currentWord, setCurrentWord] = useState<Word | undefined>(undefined)
 
   useEffect(() => {
-    const fetchWords = async (): Promise<void> => {
+    const fetchInitialData = async (): Promise<void> => {
       try {
-        const words = await window.api.getWords()
+        const [words, tags] = await Promise.all([window.api.getWords(), window.api.getTags()])
         setWords(words)
+        setAllTags(tags)
       } catch (err) {
-        message.error('単語の取得に失敗しました')
+        message.error('データの取得に失敗しました')
         console.error(err)
       }
     }
-    fetchWords()
+    fetchInitialData()
   }, [])
 
   useEffect(() => {
     const fetchSearchResults = async (): Promise<void> => {
-      if (searchQuery.trim() === '') {
+      if (searchQuery.trim() === '' && selectedTags.length === 0) {
         setFilteredWords(words)
         return
       }
       try {
-        const results = await window.api.searchWords(searchQuery)
+        const results = await window.api.searchWords({
+          textQuery: searchQuery,
+          tagNames: selectedTags.map((tag) => tag.name)
+        })
         setFilteredWords(results)
       } catch (err) {
         message.error('検索に失敗しました')
@@ -48,7 +54,7 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
       }
     }
     fetchSearchResults()
-  }, [searchQuery, words])
+  }, [searchQuery, selectedTags, words])
 
   const handleAddWordSubmit = async (values: Word): Promise<void> => {
     try {
@@ -70,8 +76,12 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
         ...currentWord,
         ...values
       })
-      const updatedWords = await window.api.getWords()
+      const [updatedWords, updatedTags] = await Promise.all([
+        window.api.getWords(),
+        window.api.getTags()
+      ])
       setWords(updatedWords)
+      setAllTags(updatedTags)
       setIsEditModalOpen(false)
       message.success('用語を更新しました')
     } catch (err) {
@@ -139,16 +149,35 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           style={{ width: 120, borderRadius: 8, marginRight: 80 }}
         />
       </FloatButton.Group>
-      <Search
-        placeholder="用語を検索..."
-        allowClear
-        enterButton
-        size="large"
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        onSearch={(value) => setSearchQuery(value)}
-        style={{ marginBottom: '24px' }}
-      />
+      <div style={{ marginBottom: '24px' }}>
+        <Search
+          placeholder="用語を検索..."
+          allowClear
+          enterButton
+          size="large"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          onSearch={(value) => setSearchQuery(value)}
+          style={{ marginBottom: '10px' }}
+        />
+        <div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {allTags.map((tag) => (
+              <AntdTag.CheckableTag
+                key={tag.id}
+                checked={selectedTags.includes(tag)}
+                onChange={(checked) => {
+                  setSelectedTags((prev) =>
+                    checked ? [...prev, tag] : prev.filter((t) => t !== tag)
+                  )
+                }}
+              >
+                {tag.name}
+              </AntdTag.CheckableTag>
+            ))}
+          </div>
+        </div>
+      </div>
       <WordFormModal
         open={isModalOpen}
         onCancel={() => setIsModalOpen(false)}
@@ -197,16 +226,16 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
               {word.description}
               <div style={{ marginTop: 8 }}>
                 {word.tags?.map((tag) => (
-                  <Tag key={tag.id} icon={<TagOutlined />}>
+                  <AntdTag key={tag.id} icon={<TagOutlined />}>
                     {tag.name}
-                  </Tag>
+                  </AntdTag>
                 ))}
               </div>
             </Card>
           </List.Item>
         )}
         style={{
-          height: 'calc(100vh - 230px)',
+          height: 'calc(100vh - 260px)',
           overflow: 'auto',
           paddingRight: '8px'
         }}

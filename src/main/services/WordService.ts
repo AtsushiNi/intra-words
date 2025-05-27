@@ -87,20 +87,45 @@ export class WordService {
     }
   }
 
-  async searchWords(query: string): Promise<Word[]> {
-    const words = await this.db.all(
-      `SELECT w.*, 
+  async searchWords(params: { textQuery: string; tagNames: string[] }): Promise<Word[]> {
+    let query = `
+      SELECT DISTINCT w.*, 
              COALESCE(
                (SELECT json_group_array(json_object('id', t.id, 'name', t.name))
                FROM word_tags wt 
                JOIN tags t ON wt.tag_id = t.id
                WHERE wt.word_id = w.id
              ), '[]') as tags_json
-       FROM words w
-       WHERE w.text LIKE ? OR w.description LIKE ?
-       ORDER BY w.text`,
-      [`%${query}%`, `%${query}%`]
-    )
+      FROM words w
+    `
+
+    const conditions: string[] = []
+    const values: string[] = []
+
+    // 単語テキスト検索条件
+    if (params.textQuery.trim() !== '') {
+      conditions.push('(w.text LIKE ? OR w.description LIKE ?)')
+      values.push(`%${params.textQuery}%`, `%${params.textQuery}%`)
+    }
+
+    // タグ検索条件
+    if (params.tagNames.length > 0) {
+      const tagConditions = params.tagNames.map(() => 't.name = ?').join(' OR ')
+      conditions.push(`w.id IN (
+        SELECT wt.word_id FROM word_tags wt
+        JOIN tags t ON wt.tag_id = t.id
+        WHERE ${tagConditions}
+      )`)
+      values.push(...params.tagNames)
+    }
+
+    if (conditions.length > 0) {
+      query += ` WHERE ${conditions.join(' AND ')}`
+    }
+
+    query += ' ORDER BY w.text'
+
+    const words = await this.db.all(query, values)
 
     return words.map((word) => ({
       ...word,
@@ -119,6 +144,9 @@ export class WordService {
 
     await this.db.run('BEGIN TRANSACTION')
     try {
+      // 更新前のタグを取得
+      const oldTags = await this.getTagsByWord(word.id)
+
       // 単語情報の更新
       await this.db.run('UPDATE words SET text = ?, description = ?, updatedAt = ? WHERE id = ?', [
         word.text,
@@ -134,6 +162,21 @@ export class WordService {
       if (word.tags && word.tags.length > 0) {
         for (const tag of word.tags) {
           await this.addTag(word.id, tag.name)
+        }
+      }
+
+      // 更新で削除されたタグのみをクリーンアップ
+      const removedTags = oldTags.filter(
+        (oldTag) => !word.tags?.some((t) => t.name === oldTag.name)
+      )
+      for (const removedTag of removedTags) {
+        // 他の単語で使われていないか確認
+        const usageCount = await this.db.get(
+          'SELECT COUNT(*) as count FROM word_tags WHERE tag_id = ?',
+          [removedTag.id]
+        )
+        if (usageCount.count === 0) {
+          await this.db.run('DELETE FROM tags WHERE id = ?', [removedTag.id])
         }
       }
 
