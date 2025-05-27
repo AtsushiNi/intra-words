@@ -18,6 +18,7 @@ declare global {
       updateWord: (word: Word) => Promise<void>
       getTags: () => Promise<Tag[]>
       addTag: (wordId: number, tagName: string) => Promise<void>
+      exportWords: (words: Word[]) => Promise<void>
     }
   }
 }

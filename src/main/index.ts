@@ -197,6 +197,30 @@ app.whenReady().then(async () => {
     await wordService.addTag(wordId, tagName)
   })
 
+  ipcMain.handle('export-words', async (_, words: Word[]) => {
+    try {
+      const filteredWords = words.map(word => ({
+        text: word.text,
+        description: word.description,
+        tags: word.tags?.map(tag => ({ name: tag.name }))
+      }))
+      const jsonData = JSON.stringify(filteredWords, null, 2)
+      const { filePath } = await dialog.showSaveDialog({
+        title: '用語リストをエクスポート',
+        defaultPath: `words_${new Date().toISOString().slice(0, 10)}.json`,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (filePath) {
+        fs.writeFileSync(filePath, jsonData)
+        return { success: true, path: filePath }
+      }
+      return { success: false }
+    } catch (error) {
+      console.error('Export failed:', error)
+      return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }
+    }
+  })
+
   ipcMain.handle('open-directory-dialog', async () => {
     const result = await dialog.showOpenDialog({
       title: 'データ保存先フォルダを選択',

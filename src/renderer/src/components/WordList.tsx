@@ -148,6 +148,21 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
           onClick={onNavigateToTextAnalysis}
           style={{ width: 120, borderRadius: 8, marginRight: 80 }}
         />
+        <FloatButton
+          type="primary"
+          className="word-export-button"
+          description="用語をエクスポート"
+          onClick={async () => {
+            try {
+              await window.api.exportWords(filteredWords)
+              message.success('用語リストをエクスポートしました')
+            } catch (err) {
+              message.error('エクスポートに失敗しました')
+              console.error(err)
+            }
+          }}
+          style={{ width: 120, borderRadius: 8, marginRight: 80 }}
+        />
       </FloatButton.Group>
       <div style={{ marginBottom: '24px' }}>
         <Search

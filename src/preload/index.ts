@@ -16,7 +16,8 @@ const api = {
   deleteWord: (id: number) => ipcRenderer.invoke('delete-word', id),
   updateWord: (word: Word) => ipcRenderer.invoke('update-word', word),
   getTags: () => ipcRenderer.invoke('get-tags'),
-  addTag: (wordId: number, tagName: string) => ipcRenderer.invoke('add-tag', wordId, tagName)
+  addTag: (wordId: number, tagName: string) => ipcRenderer.invoke('add-tag', wordId, tagName),
+  exportWords: (words: Word[]) => ipcRenderer.invoke('export-words', words)
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to

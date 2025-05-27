@@ -37,21 +37,17 @@ export class WordService {
 
   async getAllWords(): Promise<Word[]> {
     const words = await this.db.all(`
-      SELECT w.*, 
-             COALESCE(
-               (SELECT json_group_array(json_object('id', t.id, 'name', t.name))
-               FROM word_tags wt 
-               JOIN tags t ON wt.tag_id = t.id
-               WHERE wt.word_id = w.id
-             ), '[]') as tags_json
+      SELECT w.*
       FROM words w
       ORDER BY w.text
     `)
 
-    return words.map((word) => ({
-      ...word,
-      tags: word.tags_json ? JSON.parse(word.tags_json) : []
-    }))
+    // 各単語のタグを取得
+    for (const word of words) {
+      word.tags = await this.getTagsByWord(word.id)
+    }
+
+    return words
   }
 
   async addWord(word: Word): Promise<void> {
@@ -89,13 +85,7 @@ export class WordService {
 
   async searchWords(params: { textQuery: string; tagNames: string[] }): Promise<Word[]> {
     let query = `
-      SELECT DISTINCT w.*, 
-             COALESCE(
-               (SELECT json_group_array(json_object('id', t.id, 'name', t.name))
-               FROM word_tags wt 
-               JOIN tags t ON wt.tag_id = t.id
-               WHERE wt.word_id = w.id
-             ), '[]') as tags_json
+      SELECT DISTINCT w.*
       FROM words w
     `
 
@@ -127,9 +117,16 @@ export class WordService {
 
     const words = await this.db.all(query, values)
 
-    return words.map((word) => ({
-      ...word,
-      tags: word.tags_json ? JSON.parse(word.tags_json) : []
+    // 各単語のタグを取得
+    for (const word of words) {
+      const tags = await this.getTagsByWord(word.id)
+      word.tags = tags.map(tag => ({ name: tag.name })) // idを除外
+    }
+
+    return words.map(word => ({
+      text: word.text,
+      description: word.description,
+      tags: word.tags
     }))
   }
 
