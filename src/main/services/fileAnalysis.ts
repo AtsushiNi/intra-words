@@ -1,10 +1,12 @@
 import * as XLSX from 'xlsx'
 import * as fs from 'fs'
 import * as mammoth from 'mammoth'
+import pdfParse from 'pdf-parse'
 import { dialog } from 'electron'
 import { Word } from '../../common/types'
 import { AnalysisService } from './analysis'
 import { WordService } from './WordService'
+import * as jschardet from 'jschardet'
 
 export class FileAnalysisService {
   private analysisService: AnalysisService
@@ -19,7 +21,24 @@ export class FileAnalysisService {
       const result = await dialog.showOpenDialog({
         properties: ['openFile'],
         filters: [
-          { name: 'Supported Files', extensions: ['docx', 'xlsx', 'xls'] },
+          {
+            name: 'Supported Files',
+            extensions: [
+              'docx',
+              'xlsx',
+              'xls',
+              'pdf',
+              'txt',
+              'md',
+              'log',
+              'csv',
+              'tsv',
+              'json',
+              'html',
+              'htm',
+              'xml'
+            ]
+          },
           { name: 'All Files', extensions: ['*'] }
         ]
       })
@@ -35,8 +54,17 @@ export class FileAnalysisService {
         text = await this.convertWordToText(fileBuffer)
       } else if (fileExt === 'xlsx' || fileExt === 'xls') {
         text = this.convertExcelToText(fileBuffer)
+      } else if (fileExt === 'pdf') {
+        text = await this.convertPdfToText(fileBuffer)
       } else {
-        throw new Error('サポートされていないファイル形式です')
+        const detectedEncoding = jschardet.detect(fileBuffer)
+        const encoding = detectedEncoding.encoding || 'utf-8'
+        try {
+          text = fileBuffer.toString(encoding as BufferEncoding)
+        } catch {
+          // エンコーディング検出失敗時はUTF-8でフォールバック
+          text = fileBuffer.toString('utf-8')
+        }
       }
 
       if (!text) throw new Error('ファイルから有効なデータを抽出できませんでした')
@@ -50,6 +78,11 @@ export class FileAnalysisService {
   private async convertWordToText(fileBuffer: Buffer): Promise<string> {
     const result = await mammoth.extractRawText({ buffer: fileBuffer })
     return result.value.trim()
+  }
+
+  private async convertPdfToText(fileBuffer: Buffer): Promise<string> {
+    const data = await pdfParse(fileBuffer)
+    return data.text.trim()
   }
 
   private convertExcelToText(fileBuffer: Buffer): string {
