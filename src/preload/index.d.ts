@@ -21,6 +21,10 @@ declare global {
       addTag: (wordId: number, tagName: string) => Promise<void>
       exportWords: (words: Word[]) => Promise<void>
       importWords: () => Promise<number>
+      onFocusAnalyzeText: (callback: () => void) => () => void
+      onStartAnalyzeText: (callback: (text) => Promise<void>) => () => void
+      onFocusWordList: (callback: () => void) => () => void
+      onStartSearchWords: (callback: (text) => Promise<void>) => () => void
     }
   }
 }

@@ -9,13 +9,18 @@ import icon from '../../resources/icon.png?asset'
 import { AnalysisService } from './services/analysis'
 import { WordService } from './services/WordService'
 import { FileAnalysisService } from './services/fileAnalysis'
+import { HttpServerService } from './services/HttpServerService'
 import { Word } from '../common/types'
+
+let wordService: WordService
+let httpServerService: HttpServerService
+let mainWindow: BrowserWindow
 
 config()
 
-function createWindow(): void {
+function createWindow(): BrowserWindow {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  const window = new BrowserWindow({
     width: 900,
     height: 670,
     show: false,
@@ -27,11 +32,11 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.on('ready-to-show', () => {
-    mainWindow.show()
+  window.on('ready-to-show', () => {
+    window.show()
   })
 
-  mainWindow.webContents.setWindowOpenHandler((details) => {
+  window.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
@@ -39,10 +44,12 @@ function createWindow(): void {
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+    window.loadURL(process.env['ELECTRON_RENDERER_URL'])
   } else {
-    mainWindow.loadFile(join(__dirname, '../renderer/index.html'))
+    window.loadFile(join(__dirname, '../renderer/index.html'))
   }
+
+  return window
 }
 
 // This method will be called when Electron has finished
@@ -128,11 +135,22 @@ app.whenReady().then(async () => {
   // Initialize database
   await initializeDB()
 
+  // Create main window first
+  mainWindow = createWindow()
+
   // Initialize services
-  const wordService = new WordService(db)
+  wordService = new WordService(db)
   const analysisService = new AnalysisService(wordService)
   const fileAnalysisService = new FileAnalysisService(wordService)
   await wordService.initialize()
+
+  // Initialize and start HTTP server
+  httpServerService = new HttpServerService(wordService, mainWindow)
+  try {
+    await httpServerService.startServer()
+  } catch (error) {
+    console.error('Failed to start HTTP server:', error)
+  }
 
   // Text analysis IPC handlers
   ipcMain.handle('analyze-text', async (_, text: string) => {
@@ -269,8 +287,6 @@ app.whenReady().then(async () => {
     return result.canceled ? null : result.filePaths[0]
   })
 
-  createWindow()
-
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -283,8 +299,16 @@ app.whenReady().then(async () => {
 // explicitly with Cmd + Q.
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit()
+    httpServerService.stopServer().finally(() => {
+      app.quit()
+    })
   }
+})
+
+app.on('will-quit', () => {
+  httpServerService.stopServer().catch((error) => {
+    console.error('Failed to stop HTTP server:', error)
+  })
 })
 
 // In this file you can include the rest of your app's specific main process

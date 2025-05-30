@@ -28,6 +28,14 @@ function WordList({
   const [currentWord, setCurrentWord] = useState<Word | undefined>(undefined)
 
   useEffect(() => {
+    const handler = (text: string): Promise<void> => {
+      setSearchQuery(text)
+      return Promise.resolve()
+    }
+    return window.api.onStartSearchWords(handler)
+  }, [])
+
+  useEffect(() => {
     const fetchInitialData = async (): Promise<void> => {
       try {
         const [words, tags] = await Promise.all([window.api.getWords(), window.api.getTags()])

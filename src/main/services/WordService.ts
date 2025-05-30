@@ -121,7 +121,15 @@ export class WordService {
       word.tags = await this.getTagsByWord(word.id)
     }
 
-    return words
+    // Wordインターフェースに含まれるプロパティのみを返す
+    return words.map(word => ({
+      id: word.id,
+      text: word.text,
+      description: word.description,
+      tags: word.tags,
+      createdAt: word.createdAt,
+      updatedAt: word.updatedAt
+    }))
   }
 
   async addWord(word: Word): Promise<void> {
@@ -208,7 +216,15 @@ export class WordService {
       word.tags = tags.map((tag) => ({ name: tag.name }))
     }
 
-    return words
+    // Wordインターフェースに含まれるプロパティのみを返す
+    return words.map(word => ({
+      id: word.id,
+      text: word.text,
+      description: word.description,
+      tags: word.tags,
+      createdAt: word.createdAt,
+      updatedAt: word.updatedAt
+    }))
   }
 
   async searchWords(params: { textQuery: string; tagNames: string[] }): Promise<Word[]> {
@@ -230,7 +246,15 @@ export class WordService {
       }
     }
 
-    return words
+    // Wordインターフェースに含まれるプロパティのみを返す
+    return words.map(word => ({
+      id: word.id,
+      text: word.text,
+      description: word.description,
+      tags: word.tags,
+      createdAt: word.createdAt,
+      updatedAt: word.updatedAt
+    }))
   }
 
   async deleteWord(id: number): Promise<void> {

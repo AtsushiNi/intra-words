@@ -17,6 +17,30 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
   const [selectedIndices, setSelectedIndices] = useState<number[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [allTags, setAllTags] = useState<Tag[]>([])
+  const [isForceAnalyze, setIsForceAnalyze] = useState(false)
+
+  useEffect(() => {
+    const handler = (text: string): Promise<void> => {
+      setIsForceAnalyze(true)
+      setText(text)
+      return Promise.resolve()
+    }
+    return window.api.onStartAnalyzeText(handler)
+  }, [])
+
+  useEffect(() => {
+    if (text && isForceAnalyze) {
+      ;(async () => {
+        try {
+          await handleAnalyze()
+        } catch (error) {
+          console.error('解析処理中にエラーが発生しました:', error)
+        } finally {
+          setIsForceAnalyze(false)
+        }
+      })()
+    }
+  }, [isForceAnalyze])
 
   useEffect(() => {
     if (textAreaRef.current) {

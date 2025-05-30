@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import 'antd/dist/reset.css'
 import { Layout, Button, ConfigProvider } from 'antd'
 import { SettingOutlined, UnorderedListOutlined } from '@ant-design/icons'
@@ -13,6 +13,13 @@ function App(): React.JSX.Element {
   const [currentView, setCurrentView] = useState<
     'wordList' | 'settings' | 'textAnalysis' | 'fileAnalysis'
   >('wordList')
+
+  useEffect(() => {
+    return window.api.onFocusWordList(() => setCurrentView('wordList'))
+  }, [])
+  useEffect(() => {
+    return window.api.onFocusAnalyzeText(() => setCurrentView('textAnalysis'))
+  }, [])
 
   return (
     <ConfigProvider

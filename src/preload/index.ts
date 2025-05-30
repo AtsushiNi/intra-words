@@ -1,11 +1,11 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 import { Word } from '../common/types'
 
 // Custom APIs for renderer
 const api = {
   getWords: () => ipcRenderer.invoke('get-words'),
-  addWord: (word) => ipcRenderer.invoke('add-word', word),
+  addWord: (word: Word) => ipcRenderer.invoke('add-word', word),
   searchWords: (params: { textQuery: string; tagNames: string[] }) =>
     ipcRenderer.invoke('search-words', params),
   getConfig: () => ipcRenderer.invoke('get-config'),
@@ -19,7 +19,25 @@ const api = {
   getTags: () => ipcRenderer.invoke('get-tags'),
   addTag: (wordId: number, tagName: string) => ipcRenderer.invoke('add-tag', wordId, tagName),
   exportWords: (words: Word[]) => ipcRenderer.invoke('export-words', words),
-  importWords: () => ipcRenderer.invoke('import-words')
+  importWords: () => ipcRenderer.invoke('import-words'),
+  onFocusAnalyzeText: (callback: () => void): (() => void) => {
+    ipcRenderer.on('focus-analyze-text', callback)
+    return () => ipcRenderer.off('focus-analyze-text', callback)
+  },
+  onStartAnalyzeText: (callback: (text: string) => void): (() => void) => {
+    const func = (_event: IpcRendererEvent, text: string): void => callback(text)
+    ipcRenderer.on('start-analyze-text', func)
+    return () => ipcRenderer.off('start-analyze-text', func)
+  },
+  onFocusWordList: (callback: () => void): (() => void) => {
+    ipcRenderer.on('focus-word-list', callback)
+    return () => ipcRenderer.off('focus-word-list', callback)
+  },
+  onStartSearchWords: (callback: (text: string) => void): (() => void) => {
+    const func = (_event: IpcRendererEvent, text: string): void => callback(text)
+    ipcRenderer.on('start-search-words', func)
+    return () => ipcRenderer.off('start-search-words', func)
+  }
 }
 
 // Use `contextBridge` APIs to expose Electron APIs to
