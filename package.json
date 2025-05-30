@@ -33,6 +33,7 @@
     "electron-updater": "^6.3.9",
     "fuse.js": "^7.1.0",
     "kuromoji": "^0.1.2",
+    "mammoth": "^1.9.1",
     "moji": "^0.5.1",
     "multer": "^2.0.0",
     "openai": "^4.100.0",

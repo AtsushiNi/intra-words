@@ -108,8 +108,12 @@ export function FileAnalysis({ onAddWords }: FileAnalysisProps): ReactElement {
                   mode="tags"
                   placeholder="タグ"
                   value={item.tags?.map((t) => t.name) || []}
-                  disabled
                   style={{ width: '100%' }}
+                  onChange={(tagNames) => {
+                    const newResults = [...results]
+                    newResults[index].tags = tagNames.map((name) => ({ name }))
+                    setResults(newResults)
+                  }}
                   options={allTags.map((tag) => ({
                     value: tag.name,
                     label: tag.name
@@ -120,7 +124,11 @@ export function FileAnalysis({ onAddWords }: FileAnalysisProps): ReactElement {
           ))}
         </Form>
         {isLoading ? (
-          <Spin tip="ファイルを解析中..." size="large" style={{ display: 'block', margin: '0 auto' }} />
+          <Spin
+            tip="ファイルを解析中..."
+            size="large"
+            style={{ display: 'block', margin: '0 auto' }}
+          />
         ) : (
           <Button type="primary" onClick={handleConfirm} block>
             選択した単語を登録

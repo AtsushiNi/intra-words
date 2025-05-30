@@ -106,7 +106,12 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
               {results.map((item, index) => (
                 <div
                   key={index}
-                  style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '16px' }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '16px',
+                    marginBottom: '16px'
+                  }}
                 >
                   <Checkbox
                     checked={selectedIndices.includes(index)}
@@ -146,14 +151,14 @@ export function TextAnalysis({ onAddWords }: TextAnalysisProps): ReactElement {
                     <Select
                       mode="tags"
                       placeholder="タグ"
-                      value={item.tags?.map(t => t.name) || []}
+                      value={item.tags?.map((t) => t.name) || []}
                       onChange={(tagNames) => {
                         const newResults = [...results]
-                        newResults[index].tags = tagNames.map(name => ({ name }))
+                        newResults[index].tags = tagNames.map((name) => ({ name }))
                         setResults(newResults)
                       }}
                       style={{ width: '100%' }}
-                      options={allTags.map(tag => ({
+                      options={allTags.map((tag) => ({
                         value: tag.name,
                         label: tag.name
                       }))}
