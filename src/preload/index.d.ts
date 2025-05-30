@@ -13,6 +13,7 @@ declare global {
       updateConfig: (config: Config) => Promise<void>
       openDirectoryDialog: () => Promise<string>
       analyzeText: (text: string) => Promise<WordDefinition[]>
+      analyzeFile: () => Promise<WordDefinition[]>
       addWords: (words: WordDefinition[]) => Promise<void>
       deleteWord: (id: number) => Promise<void>
       updateWord: (word: Word) => Promise<void>

@@ -8,6 +8,7 @@ import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { AnalysisService } from './services/analysis'
 import { WordService } from './services/WordService'
+import { ExcelAnalysisService } from './services/excelAnalysis'
 import { Word } from '../common/types'
 
 config()
@@ -130,6 +131,7 @@ app.whenReady().then(async () => {
   // Initialize services
   const wordService = new WordService(db)
   const analysisService = new AnalysisService(wordService)
+  const excelAnalysisService = new ExcelAnalysisService(wordService)
   await wordService.initialize()
 
   // Text analysis IPC handlers
@@ -139,6 +141,15 @@ app.whenReady().then(async () => {
       return results
     } catch (error) {
       console.error('Text analysis failed:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle('analyze-file', async () => {
+    try {
+      return await excelAnalysisService.analyzeExcel()
+    } catch (error) {
+      console.error('File analysis failed:', error)
       throw error
     }
   })

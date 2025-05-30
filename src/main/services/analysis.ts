@@ -27,7 +27,7 @@ export class AnalysisService {
     const allTags = await this.wordService.getAllTags()
     const tagList = allTags.map((t) => t.name).join(', ')
 
-    const systemPrompt = `与えられたテキストから、用語集に登録すべき重要な用語とその説明を抽出し、適切なタグを付与してください。
+    const systemPrompt = `与えられたテキストから、特殊かつ重要な用語とその説明を抽出し、適切なタグを付与してください。
 利用可能なタグ: ${tagList}
 
 以下のJSON形式で返してください:

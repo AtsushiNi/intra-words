@@ -2,13 +2,29 @@ import { open } from 'sqlite'
 import Fuse from 'fuse.js'
 import moji from 'moji'
 import TinySegmenter from 'tiny-segmenter'
+import kuromoji from 'kuromoji'
 import { Word, Tag } from '../../common/types'
 
 const segmenter = new TinySegmenter()
+let kuromojiTokenizer: kuromoji.Tokenizer<kuromoji.IpadicFeatures>
+
+// kuromoji辞書の初期化
+kuromoji.builder({ dicPath: 'node_modules/kuromoji/dict' }).build((err, tokenizer) => {
+  if (err) {
+    console.error('kuromojiの初期化に失敗しました:', err)
+  } else {
+    kuromojiTokenizer = tokenizer
+  }
+})
 
 function _tokenize(text: string, tokenizer: string): string[] {
   if (tokenizer === 'trigram') {
     return text.match(/.{1,3}/g) || []
+  } else if (tokenizer === 'kuromoji' && kuromojiTokenizer) {
+    // 表層形と読みの両方を返す
+    return kuromojiTokenizer
+      .tokenize(text)
+      .flatMap((t) => [t.surface_form, ...(t.reading ? [t.reading] : [])])
   } else {
     return segmenter.segment(text)
   }
@@ -21,10 +37,18 @@ function tokenize(text: string, tokenizer: string): string[] {
     .convert('ZE', 'HE')
     .toString()
     .trim()
+
   return _tokenize(query, tokenizer)
     .map((word) => {
       if (word !== ' ') {
-        return moji(word).convert('HG', 'KK').toString().toLowerCase()
+        // kuromojiのreadingがあればそれを使い、なければsurface_formをひらがなに変換
+        if (kuromojiTokenizer && tokenizer === 'kuromoji') {
+          const tokens = kuromojiTokenizer.tokenize(word)
+          if (tokens.length > 0 && tokens[0].reading) {
+            return tokens[0].reading.toLowerCase()
+          }
+        }
+        return moji(word).convert('KK', 'HG').toString().toLowerCase()
       }
       return ''
     })
@@ -32,7 +56,15 @@ function tokenize(text: string, tokenizer: string): string[] {
 }
 
 function encode(text: string): string {
-  return moji(text)
+  // ひらがなに変換してからエンコード
+  const hiraganaText = kuromojiTokenizer
+    ? kuromojiTokenizer
+        .tokenize(text)
+        .map((t) => t.reading || t.surface_form)
+        .join('')
+    : text
+
+  return moji(hiraganaText)
     .convert('HK', 'ZK')
     .convert('ZS', 'HS')
     .convert('ZE', 'HE')
@@ -131,9 +163,10 @@ export class WordService {
       ...word,
       search_text: encode(word.text),
       search_description: encode(word.description),
-      tokenized_text: tokenize(word.text, 'segmenter'),
-      tokenized_description: tokenize(word.description, 'segmenter')
+      tokenized_text: tokenize(word.text, 'kuromoji'),
+      tokenized_description: tokenize(word.description, 'kuromoji')
     }))
+    console.log(processedWords)
 
     this.fuse = new Fuse(processedWords, {
       keys: [

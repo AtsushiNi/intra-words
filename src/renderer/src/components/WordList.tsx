@@ -8,9 +8,13 @@ const { Search } = Input
 
 interface WordListProps {
   onNavigateToTextAnalysis: () => void
+  onNavigateToFileAnalysis: () => void
 }
 
-function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Element {
+function WordList({
+  onNavigateToTextAnalysis,
+  onNavigateToFileAnalysis
+}: WordListProps): React.JSX.Element {
   const [messageApi, contextHolder] = message.useMessage()
   const [words, setWords] = useState<Word[]>([])
   const [deletingWord, setDeletingWord] = useState<Word | undefined>(undefined)
@@ -175,6 +179,13 @@ function WordList({ onNavigateToTextAnalysis }: WordListProps): React.JSX.Elemen
             className="word-add-button"
             description="テキストから登録"
             onClick={onNavigateToTextAnalysis}
+            style={{ width: 120, borderRadius: 8, marginRight: 80 }}
+          />
+          <FloatButton
+            type="primary"
+            className="word-add-button"
+            description="ファイルから登録"
+            onClick={onNavigateToFileAnalysis}
             style={{ width: 120, borderRadius: 8, marginRight: 80 }}
           />
         </FloatButton.Group>

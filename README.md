@@ -3,8 +3,6 @@
 An Electron application with React and TypeScript
 
 ## TODO List
-- 日本語曖昧検索
-    - [Qiita: フロントエンド検索エンジン](https://qiita.com/Sashimimochi/items/4972b3dc333c6e5fb866)
 - URL/ファイルから登録
 - カードクリックで詳細モーダル・類語リストの表示
 - 複数データのAIによるマージ

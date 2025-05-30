@@ -12,6 +12,7 @@ const api = {
   updateConfig: (config) => ipcRenderer.invoke('update-config', config),
   openDirectoryDialog: () => ipcRenderer.invoke('open-directory-dialog'),
   analyzeText: (text: string) => ipcRenderer.invoke('analyze-text', text),
+  analyzeFile: () => ipcRenderer.invoke('analyze-file'),
   addWords: (words: Word[]) => ipcRenderer.send('add-words', words),
   deleteWord: (id: number) => ipcRenderer.invoke('delete-word', id),
   updateWord: (word: Word) => ipcRenderer.invoke('update-word', word),

@@ -5,13 +5,14 @@ import { SettingOutlined, UnorderedListOutlined } from '@ant-design/icons'
 import WordList from './components/WordList'
 import Settings from './components/Settings'
 import { TextAnalysis } from './components/TextAnalysis'
+import { FileAnalysis } from './components/FileAnalysis'
 
 const { Header, Content } = Layout
 
 function App(): React.JSX.Element {
-  const [currentView, setCurrentView] = useState<'wordList' | 'settings' | 'textAnalysis'>(
-    'wordList'
-  )
+  const [currentView, setCurrentView] = useState<
+    'wordList' | 'settings' | 'textAnalysis' | 'fileAnalysis'
+  >('wordList')
 
   return (
     <ConfigProvider
@@ -61,8 +62,13 @@ function App(): React.JSX.Element {
             <Settings />
           ) : currentView === 'textAnalysis' ? (
             <TextAnalysis onAddWords={() => setCurrentView('wordList')} />
+          ) : currentView === 'fileAnalysis' ? (
+            <FileAnalysis onAddWords={() => setCurrentView('wordList')} />
           ) : (
-            <WordList onNavigateToTextAnalysis={() => setCurrentView('textAnalysis')} />
+            <WordList
+              onNavigateToTextAnalysis={() => setCurrentView('textAnalysis')}
+              onNavigateToFileAnalysis={() => setCurrentView('fileAnalysis')}
+            />
           )}
         </Content>
       </Layout>
