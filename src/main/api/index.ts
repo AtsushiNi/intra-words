@@ -1,3 +1,4 @@
+import { ApiConfiguration } from '../../common/types'
 import { DeepSeekHandler } from './providers/deepseek'
 
 export interface ApiHandler {
@@ -5,21 +6,10 @@ export interface ApiHandler {
 }
 
 export function buildApiHandler(configuration: ApiConfiguration): ApiHandler {
-  const { apiProvider, ...options } = configuration
-  switch (apiProvider) {
+  switch (configuration.apiProvider) {
     case 'deepseek':
-      return new DeepSeekHandler(options)
+      return new DeepSeekHandler(configuration)
     default:
-      return new DeepSeekHandler(options)
+      return new DeepSeekHandler(configuration)
   }
-}
-
-export type ApiProvider = 'deepseek' | 'openai'
-
-export interface ApiHandlerOptions {
-  deepSeekApiKey?: string
-}
-
-export type ApiConfiguration = ApiHandlerOptions & {
-  apiProvider?: ApiProvider
 }

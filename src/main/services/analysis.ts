@@ -1,21 +1,18 @@
 import { ApiHandler, buildApiHandler } from '../api'
-import { Word } from '../../common/types'
+import { ApiConfiguration, Word } from '../../common/types'
 import { WordService } from './WordService'
 
 export class AnalysisService {
-  private readonly api: ApiHandler
+  private api: ApiHandler
   private readonly wordService: WordService
 
-  constructor(wordService: WordService) {
+  constructor(wordService: WordService, config: ApiConfiguration) {
     this.wordService = wordService
-    const apiKey = process.env.DEEPSEEK_API_KEY
-    if (!apiKey) {
-      throw new Error('DEEPSEEK_API_KEY is not defined in environment variables')
-    }
-    const apiConfiguration = {
-      deepSeekApiKey: apiKey
-    }
-    this.api = buildApiHandler(apiConfiguration)
+    this.api = buildApiHandler(config)
+  }
+
+  public updateConfig(config: ApiConfiguration): void {
+    this.api = buildApiHandler(config)
   }
 
   public async analyzeText(text: string): Promise<Word[]> {

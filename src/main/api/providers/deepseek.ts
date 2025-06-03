@@ -1,15 +1,14 @@
 import OpenAI from 'openai'
-import { ApiHandler, ApiHandlerOptions } from '..'
+import { ApiHandler } from '..'
+import { ApiConfiguration } from '../../../common/types'
 
 export class DeepSeekHandler implements ApiHandler {
-  private options: ApiHandlerOptions
   private client: OpenAI
 
-  constructor(options: ApiHandlerOptions) {
-    this.options = options
+  constructor(configuration: ApiConfiguration) {
     this.client = new OpenAI({
       baseURL: 'https://api.deepseek.com/v1',
-      apiKey: this.options.deepSeekApiKey
+      apiKey: configuration.apiKey || ''
     })
   }
 

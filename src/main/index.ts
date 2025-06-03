@@ -1,9 +1,8 @@
 import { config } from 'dotenv'
 import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { ConfigService } from './services/ConfigService'
 import { join } from 'path'
 import fs from 'fs'
-import sqlite3 from 'sqlite3'
-import { open } from 'sqlite'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { AnalysisService } from './services/analysis'
@@ -14,6 +13,7 @@ import { Word } from '../common/types'
 
 let wordService: WordService
 let httpServerService: HttpServerService
+let configService: ConfigService
 let mainWindow: BrowserWindow
 
 config()
@@ -56,9 +56,6 @@ function createWindow(): BrowserWindow {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(async () => {
-  // Config file path
-  const configPath = join(app.getAppPath(), 'config/config.json')
-
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
@@ -69,80 +66,37 @@ app.whenReady().then(async () => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  // Database setup
-  let db
-  async function initializeDB(): Promise<void> {
-    try {
-      const config = await (async () => {
-        try {
-          const data = fs.readFileSync(configPath, 'utf8')
-          const config = JSON.parse(data)
-          if (!config.databaseFolder) {
-            throw new Error('databaseFolder not specified in config')
-          }
-          return config
-        } catch {
-          // Default to app data directory
-          const defaultPath = app.getPath('appData')
-          return { databaseFolder: defaultPath }
-        }
-      })()
-
-      // Normalize path (expand ~ and resolve relative paths)
-      const normalizePath = (path: string): string => {
-        if (!path) {
-          throw new Error('Database path is undefined')
-        }
-        if (path.startsWith('~')) {
-          return join(app.getPath('home'), path.slice(1))
-        }
-        if (!path.startsWith('/')) {
-          return join(app.getAppPath(), path)
-        }
-        return path
-      }
-
-      const normalizedDbPath = normalizePath(config.databaseFolder)
-      const dbPath = join(normalizedDbPath, 'words.db')
-
-      // Ensure directory exists with proper permissions
-      try {
-        if (!fs.existsSync(config.databaseFolder)) {
-          fs.mkdirSync(config.databaseFolder, {
-            recursive: true,
-            mode: 0o755 // rwxr-xr-x
-          })
-        }
-
-        // Test directory accessibility
-        fs.accessSync(config.databaseFolder, fs.constants.R_OK | fs.constants.W_OK)
-
-        db = await open({
-          filename: dbPath,
-          driver: sqlite3.Database,
-          mode: sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
-        })
-      } catch (error) {
-        throw new Error(
-          `Failed to initialize database folder at ${dbPath}: ${error instanceof Error ? error.message : String(error)}`
-        )
-      }
-    } catch (error) {
-      console.error('Database initialization failed:', error)
-    }
-  }
-
-  // Initialize database
-  await initializeDB()
-
   // Create main window first
   mainWindow = createWindow()
 
+  // Initialize ConfigService first
+  configService = new ConfigService()
+  await configService.initialize()
+  const config = configService.getConfig()
+
+  // Database setup
+  const { db, service } = await WordService.initializeDatabase(config.databaseFolder)
+  wordService = service || new WordService(db)
+  await wordService.updateDatabase(db)
+
+  // Config change listener
+  configService.on('config-updated', async (newConfig) => {
+    // Update services with new config
+    analysisService.updateConfig(newConfig.apiConfiguration)
+    fileAnalysisService.updateConfig(newConfig.apiConfiguration)
+
+    // Reinitialize database if folder changed
+    try {
+      const { db: newDb } = await WordService.initializeDatabase(newConfig.databaseFolder)
+      await wordService.updateDatabase(newDb)
+    } catch (error) {
+      console.error('Failed to update database:', error)
+    }
+  })
+
   // Initialize services
-  wordService = new WordService(db)
-  const analysisService = new AnalysisService(wordService)
-  const fileAnalysisService = new FileAnalysisService(wordService)
-  await wordService.initialize()
+  const analysisService = new AnalysisService(wordService, config.apiConfiguration)
+  const fileAnalysisService = new FileAnalysisService(wordService, config.apiConfiguration)
 
   // Initialize and start HTTP server
   httpServerService = new HttpServerService(wordService, mainWindow)
@@ -155,8 +109,7 @@ app.whenReady().then(async () => {
   // Text analysis IPC handlers
   ipcMain.handle('analyze-text', async (_, text: string) => {
     try {
-      const results = await analysisService.analyzeText(text)
-      return results
+      return await analysisService.analyzeText(text)
     } catch (error) {
       console.error('Text analysis failed:', error)
       throw error
@@ -173,24 +126,11 @@ app.whenReady().then(async () => {
   })
 
   ipcMain.handle('get-config', async () => {
-    try {
-      const data = fs.readFileSync(configPath, 'utf8')
-      return JSON.parse(data)
-    } catch {
-      return { databaseFolder: join(app.getAppPath(), 'data') }
-    }
+    return configService.getConfig()
   })
 
   ipcMain.handle('update-config', async (_, config) => {
-    try {
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2))
-      return { success: true }
-    } catch (error: unknown) {
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
+    return configService.updateConfig(config)
   })
 
   // Word operations

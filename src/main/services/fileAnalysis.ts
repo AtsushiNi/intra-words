@@ -3,7 +3,7 @@ import * as fs from 'fs'
 import * as mammoth from 'mammoth'
 import pdfParse from 'pdf-parse'
 import { dialog } from 'electron'
-import { Word } from '../../common/types'
+import { ApiConfiguration, Word } from '../../common/types'
 import { AnalysisService } from './analysis'
 import { WordService } from './WordService'
 import * as jschardet from 'jschardet'
@@ -11,8 +11,12 @@ import * as jschardet from 'jschardet'
 export class FileAnalysisService {
   private analysisService: AnalysisService
 
-  constructor(wordService: WordService) {
-    this.analysisService = new AnalysisService(wordService)
+  constructor(wordService: WordService, apiConfig: ApiConfiguration) {
+    this.analysisService = new AnalysisService(wordService, apiConfig)
+  }
+
+  public updateConfig(config: ApiConfiguration): void {
+    this.analysisService.updateConfig(config)
   }
 
   public async analyzeFile(): Promise<Word[]> {

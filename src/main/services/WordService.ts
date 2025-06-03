@@ -4,6 +4,9 @@ import moji from 'moji'
 import TinySegmenter from 'tiny-segmenter'
 import kuromoji from 'kuromoji'
 import { Word, Tag } from '../../common/types'
+import { join } from 'path'
+import fs from 'fs'
+import sqlite3 from 'sqlite3'
 
 const segmenter = new TinySegmenter()
 let kuromojiTokenizer: kuromoji.Tokenizer<kuromoji.IpadicFeatures>
@@ -82,31 +85,72 @@ export class WordService {
     this.db = db
   }
 
-  async initialize(): Promise<void> {
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS words (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        text TEXT NOT NULL,
-        description TEXT,
-        createdAt TEXT NOT NULL,
-        updatedAt TEXT NOT NULL
-      )
-    `)
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS tags (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        name TEXT NOT NULL UNIQUE
-      )
-    `)
-    await this.db.exec(`
-      CREATE TABLE IF NOT EXISTS word_tags (
-        word_id INTEGER NOT NULL,
-        tag_id INTEGER NOT NULL,
-        PRIMARY KEY (word_id, tag_id),
-        FOREIGN KEY (word_id) REFERENCES words(id) ON DELETE CASCADE,
-        FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
-      )
-    `)
+  async updateDatabase(newDb: Awaited<ReturnType<typeof open>>): Promise<void> {
+    this.db = newDb
+    this.fuse = undefined // 検索インデックスをリセット
+  }
+
+  static async initializeDatabase(
+    databaseFolder: string,
+    options: { skipSchemaInit?: boolean } = {}
+  ): Promise<{ db: Awaited<ReturnType<typeof open>>; service?: WordService }> {
+    let db
+    try {
+      const dbPath = join(databaseFolder, 'words.db')
+
+      // Ensure directory exists with proper permissions
+      if (!fs.existsSync(databaseFolder)) {
+        fs.mkdirSync(databaseFolder, {
+          recursive: true,
+          mode: 0o755 // rwxr-xr-x
+        })
+      }
+
+      // Test directory accessibility
+      fs.accessSync(databaseFolder, fs.constants.R_OK | fs.constants.W_OK)
+
+      db = await open({
+        filename: dbPath,
+        driver: sqlite3.Database,
+        mode: sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE
+      })
+
+      if (options.skipSchemaInit) {
+        return { db }
+      }
+
+      // Initialize schema
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS words (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          text TEXT NOT NULL,
+          description TEXT,
+          createdAt TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      `)
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS tags (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL UNIQUE
+        )
+      `)
+      await db.exec(`
+        CREATE TABLE IF NOT EXISTS word_tags (
+          word_id INTEGER NOT NULL,
+          tag_id INTEGER NOT NULL,
+          PRIMARY KEY (word_id, tag_id),
+          FOREIGN KEY (word_id) REFERENCES words(id) ON DELETE CASCADE,
+          FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE
+        )
+      `)
+
+      const service = new WordService(db)
+      return { db, service }
+    } catch (error) {
+      console.error('Database initialization failed:', error)
+      throw error
+    }
   }
 
   async getAllWords(): Promise<Word[]> {

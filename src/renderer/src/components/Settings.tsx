@@ -1,19 +1,29 @@
 import React, { useEffect, useState } from 'react'
-import { Form, Input, Button, Typography, message } from 'antd'
+import { Form, Input, Button, Typography, message, Select } from 'antd'
+import { ApiProvider } from 'src/common/types'
 
 const { Title } = Typography
+const { Option } = Select
 
 const Settings: React.FC = () => {
   const [form] = Form.useForm()
   const [databaseFolder, setDatabaseFolder] = useState('')
+  const [apiKey, setApiKey] = useState('')
+  const [apiProvider, setApiProvider] = useState<ApiProvider>('deepseek')
   const [messageApi, contextHolder] = message.useMessage()
 
   useEffect(() => {
     const loadConfig = async (): Promise<void> => {
       try {
         const config = await window.api.getConfig()
-        form.setFieldsValue({ databaseFolder: config.databaseFolder })
+        form.setFieldsValue({
+          databaseFolder: config.databaseFolder,
+          apiKey: config.apiConfiguration.apiKey || '',
+          apiProvider: config.apiConfiguration.apiProvider || 'deepseek'
+        })
         setDatabaseFolder(config.databaseFolder)
+        setApiKey(config.apiConfiguration.apiKey || '')
+        setApiProvider(config.apiConfiguration.apiProvider || 'deepseek')
       } catch (err) {
         console.error('設定の読み込みに失敗しました:', err)
         messageApi.error('設定の読み込みに失敗しました')
@@ -25,7 +35,13 @@ const Settings: React.FC = () => {
   const handleSave = async (): Promise<void> => {
     try {
       const values = await form.validateFields()
-      await window.api.updateConfig({ databaseFolder: values.databaseFolder })
+      await window.api.updateConfig({
+        databaseFolder: values.databaseFolder,
+        apiConfiguration: {
+          apiKey: values.apiKey,
+          apiProvider: values.apiProvider
+        }
+      })
       messageApi.success('設定を保存しました')
     } catch (err) {
       messageApi.error(`設定の保存に失敗しました: ${err}`)
@@ -66,6 +82,36 @@ const Settings: React.FC = () => {
                 フォルダ選択
               </Button>
             </Input.Group>
+          </Form.Item>
+          <Form.Item
+            name="apiProvider"
+            label="AIプロバイダー"
+            rules={[{ required: true, message: 'AIプロバイダーを選択してください' }]}
+          >
+            <Select
+              value={apiProvider}
+              onChange={(value) => {
+                setApiProvider(value)
+                form.setFieldsValue({ apiProvider: value })
+              }}
+            >
+              <Option value="deepseek">DeepSeek</Option>
+              <Option value="openai">OpenAI</Option>
+            </Select>
+          </Form.Item>
+          <Form.Item
+            name="apiKey"
+            label={`${apiProvider === 'deepseek' ? 'DeepSeek' : 'OpenAI'} APIキー`}
+            rules={[{ required: true, message: 'APIキーを入力してください' }]}
+          >
+            <Input.Password
+              value={apiKey}
+              onChange={(e) => {
+                setApiKey(e.target.value)
+                form.setFieldsValue({ apiKey: e.target.value })
+              }}
+              placeholder="sk-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            />
           </Form.Item>
           <Form.Item>
             <Button type="primary" onClick={handleSave}>

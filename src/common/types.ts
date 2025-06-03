@@ -12,6 +12,14 @@ export interface Word {
   updatedAt?: Date
 }
 
+export type ApiProvider = 'deepseek' | 'openai'
+
+export interface ApiConfiguration {
+  apiProvider: ApiProvider
+  apiKey?: string
+}
+
 export interface Config {
   databaseFolder: string
+  apiConfiguration: ApiConfiguration
 }
